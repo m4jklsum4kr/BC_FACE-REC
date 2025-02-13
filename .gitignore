@@ -1,0 +1,41 @@
+# Virtual environments
+venv/
+env/
+
+# Configuration files
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# Log files
+*.log
+
+# Database Files
+*.sqlite3
+
+# Editor Files
+.vscode/
+.idea/
+.idea/*
+/.idea/*
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Test files
+.coverage
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Distribution files
+dist/
+build/
+*.egg-info/
+
+# Other
+/documentation/
