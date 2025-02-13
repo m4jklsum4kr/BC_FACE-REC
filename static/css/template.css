@@ -1,0 +1,59 @@
+/* --------------------------------------------------------------------------- */
+/* ------------------------------- GENERAL ----------------------------------- */
+/* --------------------------------------------------------------------------- */
+
+body {
+    background-color: #b8d8ef;
+    margin: 0;
+}
+
+.main-block {
+    text-align: center
+}
+
+/* --------------------------------------------------------------------------- */
+/* ------------------------------- HEADER ------------------------------------ */
+/* --------------------------------------------------------------------------- */
+
+header {
+    background-color: #001D64;
+    color: #EBC331;
+    text-align: center;
+    padding: 5px;
+}
+
+.onglet{
+    border-radius: 7px 7px 0 0;
+    font-family: inherit;
+    background-color: olive;
+    color: black;
+    padding: 10px;
+    border: none;
+    display: inline-block;
+    text-decoration: none;
+}
+
+.onglet:hover{
+    cursor: pointer;
+    background-color: #caca38;
+}
+
+/* --------------------------------------------------------------------------- */
+/* ------------------------------- FOOTER ------------------------------------ */
+/* --------------------------------------------------------------------------- */
+
+footer {
+    background-color: #001D64;
+    color: #EBC331;
+    text-align: center;
+    padding-block: 5px;
+    bottom: 0;
+    position: absolute;
+    width: 100%;
+}
+
+footer > a {
+    text-decoration: none;
+    display: inline-block;
+    color: #EBC331;
+}

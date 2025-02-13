@@ -1,0 +1,17 @@
+{% extends 'tpl/template.html' %}
+{% block title %}Index{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="{{url_for('static', filename='css/index.css')}}">
+{% endblock %}
+
+{% block body %}
+    <div class="main-block">
+        <h1>🕵️‍♂️ Privacy-preserving face recognition App 🕵️‍♀️</h1>
+        <br><hr><br>
+        <div class="button_block"><a href="/search_people">🔎 Start 🔎</a></div>
+        <img src="{{ url_for('static', filename='assets/Face_Privacy.jpg') }}" alt="Image title" class="image">
+
+    </div>
+{% endblock %}
+
+{% block footer %}{% include 'tpl/footer.html' %}{% endblock %}

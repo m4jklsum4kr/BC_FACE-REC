@@ -1,0 +1,17 @@
+.button_block {
+    margin-top: 10%;
+    font-size: 40px;
+}
+
+.button_block > a {
+    background-color: #64aad2;
+    border-radius: 10px;
+    padding: 3rem 3em;
+    color: black;
+    text-decoration: none;
+}
+
+.image {
+    height: 15em;
+    margin-top: 5%;
+}

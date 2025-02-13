@@ -1,0 +1,26 @@
+{% extends 'tpl/template.html' %}
+{% block title %}Search People{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="{{url_for('static', filename='css/search_people.css')}}">
+    <script src="{{ url_for('static', filename='js/search_people.js') }}"></script>
+{% endblock %}
+
+{% block header %}{% include 'tpl/header.html' %}{% endblock %}
+
+{% block body %}
+    <div class="main-block">
+        <h1 class="main-block">🕵️‍♂️ Privacy-preserving face recognition App 🕵️‍♀️</h1>
+        <br><hr>
+        <div class="upload-container">
+            <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="previewImage(event)">
+            <label for="fileInput" class="upload-label">Choose a photo</label>
+            <img id="preview" class="photo" src="#" alt="Aperçu de l'image" style="display: none;" onclick="triggerFileInput()">
+        </div>
+        <div id="photoActions" style="display: none;">
+            <button onclick="checkPhoto()">Search</button>
+            <div id="result"></div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block footer %}{% include 'tpl/footer.html' %}{% endblock %}
