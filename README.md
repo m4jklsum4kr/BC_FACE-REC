@@ -22,9 +22,9 @@ $ flask run
 # Software architecture
 
 The GUI files are organized into six folders:
-- The folder ``templates``, which contains standard HTML pages
+- The folder ``templates``, which contains standard HTML pages (frontend)
 - The folder ``static/js``, which contains JavaScript functions used by a single page
 - The folder ``static/css``, which contains style pages used by a single page
 - The folder ``static/templates``, which contains pages common to multiple pages (ex: header/footer page).
 - The ``static/assets`` folder, which contains external resources usable by the program (images, fonts, PDF documents, etc.)
-- The folder ``modules``, which contains pages common to multiple pages (ex: header/footer page).
+- The folder ``modules``, which contains all Python programs used by the server (backend)
