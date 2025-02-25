@@ -3,12 +3,12 @@ import os
 from PIL import Image
 import numpy as np
 from sklearn.decomposition import PCA
-from eigenface import EigenfaceGenerator
+from src.modules.eigenface import EigenfaceGenerator
 
 class TestEigenfaceGenerator(unittest.TestCase):
 
     def setUp(self):
-        image_folder = "yalefaces"
+        image_folder = "data/yalefaces"
         image_files = [f for f in os.listdir(image_folder) if f.endswith(".png") and f.startswith("subject01")]
         self.images = []
         for f in image_files:
