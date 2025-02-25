@@ -1,19 +1,15 @@
 import unittest
-import os
-from PIL import Image
 import numpy as np
 from sklearn.decomposition import PCA
 from src.modules.eigenface import EigenfaceGenerator
+from src.modules.utils_image import load_images  # Import the load_images function
 
 class TestEigenfaceGenerator(unittest.TestCase):
 
     def setUp(self):
         image_folder = "data/yalefaces"
-        image_files = [f for f in os.listdir(image_folder) if f.endswith(".png") and f.startswith("subject01")]
-        self.images = []
-        for f in image_files:
-            with Image.open(os.path.join(image_folder, f)) as img:
-                self.images.append(img.copy())
+        # Use the load_images function from utils.py
+        self.images = load_images(image_folder, subject_prefix="subject01")
         self.generator = EigenfaceGenerator(self.images, n_components=len(self.images))
 
     def test_generate(self):
