@@ -1,2 +1,1 @@
-class Config:
-    pass
+IMAGE_SIZE = (100, 100)

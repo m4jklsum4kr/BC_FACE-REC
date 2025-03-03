@@ -27,10 +27,6 @@ class Database:
                 return os.path.join(self.folder_path, file_name)
         raise Exception("Image not found")
 
-
-
-
-
     def select_subject_id(self, subject_id):
         return os.path.join(self.folder_path, f"subject_{subject_id}")
 

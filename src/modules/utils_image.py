@@ -7,7 +7,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 def load_images(image_folder, subject_prefix=None, image_extensions=(".png", ".jpg", ".jpeg")):
     images = []
     for filename in os.listdir(image_folder):
-        if filename.endswith(image_extensions) and (subject_prefix is None or filename.startswith(subject_prefix)):
+        filename_split = filename.split("_")
+        if filename_split[3].endswith(image_extensions) and (subject_prefix is None or filename_split[1] == subject_prefix):
             with Image.open(os.path.join(image_folder, filename)) as img:
                 images.append(img.copy())
     return images

@@ -1,0 +1,2 @@
+Warning: Some eigenfaces have static components.
+Number of vectors per user: 11
