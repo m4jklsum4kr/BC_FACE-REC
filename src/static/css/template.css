@@ -47,9 +47,8 @@ footer {
     color: #EBC331;
     text-align: center;
     padding-block: 5px;
-    bottom: 0;
-    position: absolute;
     width: 100%;
+    margin-top: 5%;
 }
 
 footer > a {

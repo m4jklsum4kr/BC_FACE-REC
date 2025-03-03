@@ -1,6 +1,8 @@
 {% extends 'tpl/template.html' %}
 {% block title %}Show Database{% endblock %}
-{% block head %}{% endblock %}
+{% block head %}
+    <script src="{{ url_for('static', filename='js/show_database.js') }}"></script>
+{% endblock %}
 
 {% block header %}{% include 'tpl/header.html' %}{% endblock %}
 
@@ -9,6 +11,13 @@
         <h1 class="main-block">🕵️‍♂️ Privacy-preserving face recognition App 🕵️‍♀️</h1>
         <br><hr><br>
         <p>show_database</p>
+        <div id="db"></div>
+
+        <label for="db_all">Choose an image:</label>
+        <select name="db_all" id="db_all"></select>
+        <img src="{{ url_for('static', filename='assets/PPFR_logo.jpeg') }}" alt="Image title" class="image" id="image">
+
+
     </div>
 {% endblock %}
 
