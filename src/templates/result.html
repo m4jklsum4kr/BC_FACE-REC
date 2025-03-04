@@ -1,0 +1,24 @@
+{% extends 'tpl/template.html' %}
+{% block title %}Search People{% endblock %}
+{% block head %}{% endblock %}
+
+{% block header %}{% include 'tpl/header.html' %}{% endblock %}
+
+{% block body %}
+    <div class="main-block">
+        <h1 class="main-block">🕵️‍♂️ Privacy-preserving face recognition App 🕵️‍♀️</h1>
+        <br><hr>
+
+        {% if df_end %}
+            <h2>Uploaded Images:</h2>
+            <div>
+                {% for image in df_end %}
+                    <img src="data:image/jpeg;base64,{{ image }}" alt="Image">
+                {% endfor %}
+            </div>
+        {% endif %}
+
+    </div>
+{% endblock %}
+
+{% block footer %}{% include 'tpl/footer.html' %}{% endblock %}
