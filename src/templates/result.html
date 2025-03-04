@@ -9,10 +9,10 @@
         <h1 class="main-block">🕵️‍♂️ Privacy-preserving face recognition App 🕵️‍♀️</h1>
         <br><hr>
 
-        {% if df_end %}
-            <h2>Uploaded Images:</h2>
+        {% if eigenfaces_list %}
+            <h2>Eigenface Images:</h2>
             <div>
-                {% for image in df_end %}
+                {% for image in eigenfaces_list %}
                     <img src="data:image/jpeg;base64,{{ image }}" alt="Image">
                 {% endfor %}
             </div>

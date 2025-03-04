@@ -21,7 +21,9 @@ The aim of the project is the development a prototype that take a photo and matc
 # ---------------------------------------------------------------------------
 from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory
 from config import *
+
 import modules.utils as utils
+from modules.peep_workflow import PeepWorkflow
 
 import os
 from PIL import Image
@@ -74,24 +76,24 @@ def new_people_processing():
         file_urls.append(pillow_image)
     print(file_urls)
 
-    df_images = pd.DataFrame({'images':file_urls, "idUser": 16, "idNumber":range(1, len(file_urls)+1)})
+    df_images = pd.DataFrame({'userFaces':file_urls, "userId": 16, "imageId":range(1, len(file_urls)+1)})
     print(df_images)
 
-    #workflow = PeepWorkflow(image_folder)
-    #return workflow.getEngeiface(), workflow.getBruitedimage()
-    #return render_template('new_people.html', var1=workflow.getEngeiface())
+    workflow = PeepWorkflow()
+    workflow.run_from_dataframe(df_images)
+    eigenfaces_image = workflow.get_eigenfaces()
+    print(eigenfaces_image)
 
     # Converti image pillow en binaire pour ne pas avoir a les save en memoire
-    df_end = []
-    for image in df_images['images'].to_list():
+    eigenfaces_list = []
+    for image in eigenfaces_image:
         buffered = io.BytesIO()
         image.save(buffered, format="JPEG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
-        df_end.append(img_str)
-    print(len(df_end), df_end)
+        eigenfaces_list.append(img_str)
+    print(len(eigenfaces_list), eigenfaces_list)
 
-
-    return render_template("result.html", df_end=df_end)
+    return render_template("result.html", eigenfaces_list=eigenfaces_list)
 
 # ---------------------------------------------------------------------------
 # ------------------------- BACK FUNCTIONS ----------------------------------
