@@ -20,7 +20,7 @@ The aim of the project is the development a prototype that take a photo and matc
 # $ pip freeze > requirements.txt; poetry init
 # ---------------------------------------------------------------------------
 from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory
-from config import Config
+from config import *
 import modules.utils as utils
 
 import os
