@@ -7,7 +7,7 @@ from src.config import IMAGE_SIZE
 from src.modules.image_preprocessing import preprocess_image
 from src.modules.eigenface import EigenfaceGenerator
 from tqdm import tqdm
-
+from src.modules.utils_image import image_numpy_to_pillow, image_pillow_to_bytes
 
 class Peep:
     def __init__(self, image_folder=None, subject_prefix=None,
@@ -241,11 +241,80 @@ class Peep:
             noise = np.random.laplace(loc=0, scale=scale, size=projected_images.shape)
             self.noisy_projected_data[subject] = projected_images + noise
         """
+     #   print(self.get_eigenfaces())
+      #  print(self.projected_data)
+       # print(self.sensitivity)
+        #print(self.get_eigenfaces())
 
-    def get_noisy_projected_data(self):
-        return self.noisy_projected_data
+        if self.epsilon is None or self.sensitivity is None:
+            raise ValueError("Epsilon and sensitivity must be set before adding noise.")
+        # Apply laplace to each vector
+        self.noisy_projected_data = {}
+        for subject, projected_images in self.projected_data.items():
+            scale = 1 / self.epsilon #self.sensitivity[subject] / self.epsilon
+            egf = np.array(self.get_eigenfaces()) # 6 images
+            noise = np.random.laplace(loc=0, scale=scale, size=egf.shape)
+            self.noisy_projected_data[subject] = egf + noise
 
-    def run_with_dp_from_folder(self, epsilon, method='bounded', unbounded_bound_type='l2'):
+        self.noised_image2 = self.noisy_projected_data
+        if False: # reconstrion noised image with PCA tests #TODO finir ici
+            # transform vectors to images
+            self.noised_image2 = {}
+            for subject, noised_vector in self.noisy_projected_data.items(): # 6 images
+                # Vérifiez les dimensions avant la transformation inverse de la PCA
+                print("Dimensions de noised_vector avant reshape :", noised_vector.shape)
+                print(len(noised_vector), noised_vector[0].shape)
+                print(self.pca_objects[subject].pca.components_.shape)
+                print(self.pca_objects[subject].pca.components_[0])
+                noised_vector = np.array([img.flatten() for img in noised_vector])
+                print('***')
+                print("Dimensions de noised_vector 2 avant reshape :", noised_vector.shape)
+
+                noised_vector_reshaped = noised_vector.reshape(-1, self.pca_objects[subject].pca.components_.shape[0])
+                self.noised_image2[subject] = self.pca_objects[subject].pca.inverse_transform(noised_vector_reshaped)
+
+                # Vérifiez les dimensions après la transformation inverse de la PCA
+                print("Dimensions de noised_vector après inverse_transform :", self.noised_image2[subject].shape)
+
+
+            a = self.noised_image2[list(self.noised_image2.keys())[0]]
+            print(len(a)) # 1000 images
+            print('µµµµµµµµµµµµµµµµµµµµµµµµµµµµ')
+            print(a[0]==a[1])
+        #print(a)
+    #    self.noised_image2 = self.noisy_projected_data
+
+      #  print(noised_vector_reshaped)
+        #print(self.noised_image2)
+
+
+    #def get_noisy_projected_data(self):
+     #   return self.noisy_projected_data
+
+    def get_noisy_projected_data(self, format:['numpy','pillow','bytes']='numpy'):
+        if format=='numpy':
+            return self.noised_image2
+       # print('hi')
+       # print(self.noised_image2)
+       # print("rrr")
+        pillow_images = []
+        for key, value in self.noised_image2.items():
+            for img in value:
+               # print(key, value, img)
+               # print('--')
+                v = image_numpy_to_pillow(img, self.resize_size)
+                pillow_images.append(v)
+       # print(pillow_images)
+        #pillow_images = [image_numpy_to_pillow(img, self.resize_size) for img in self.noised_image2.values()]
+        if format=='pillow':
+            return pillow_images
+        elif format=='bytes':
+            return [image_pillow_to_bytes(img) for img in pillow_images]
+        else:
+            raise ValueError("'format' must be numpy, pillow or bytes")
+
+
+    def run_from_folder(self, epsilon, method='bounded', unbounded_bound_type='l2'):
         if not self._load_and_preprocess_images_from_folder():
             return False
         if not self._generate_eigenfaces():
@@ -256,7 +325,7 @@ class Peep:
         self._add_laplace_noise_to_projections()
         return True
 
-    def run_with_dp_from_dataframe(self, input_df, epsilon, method='bounded', unbounded_bound_type='l2'):
+    def run_from_dataframe(self, input_df, epsilon=5, method='bounded', unbounded_bound_type='l2'):
         if not self._load_and_preprocess_images_from_dataframe(input_df):
             return False
         if not self._generate_eigenfaces():
@@ -279,15 +348,19 @@ class Peep:
             pil_eigenfaces.append(pil_image)
         return pil_eigenfaces
 
-    def get_eigenfaces_as_pil(self):
-        eigenfaces = self.get_eigenfaces()  # Get all eigenfaces
-        return self._eigenfaces_to_pil(eigenfaces)
-
     def get_eigenfaces(self):
         all_eigenfaces = []
         for subject, pca_generator in self.pca_objects.items():
             all_eigenfaces.extend(pca_generator.get_eigenfaces())
         return all_eigenfaces
+
+    def get_eigenfaces_as_pil(self):
+        eigenfaces = self.get_eigenfaces()  # Get all eigenfaces
+        return self._eigenfaces_to_pil(eigenfaces)
+
+    def get_eigenfaces_as_bytes(self):
+        return [image_pillow_to_bytes(img) for img in self.get_eigenfaces_as_pil()]
+
 
     def get_pca_components(self):
         components = {}
@@ -452,7 +525,7 @@ if __name__ == "__main__":
 
     peep = Peep(image_folder=image_folder)
 
-    if peep.run_with_dp_from_folder(epsilon=epsilon, method=method, unbounded_bound_type=unbounded_bound_type):
+    if peep.run_from_folder(epsilon=epsilon, method=method, unbounded_bound_type=unbounded_bound_type):
         print("Differential privacy processing attempted (but noise addition is incomplete)!")
 
         noisy_data = peep.get_noisy_projected_data()

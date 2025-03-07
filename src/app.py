@@ -23,7 +23,7 @@ from flask import Flask, render_template, jsonify, request, redirect, url_for, s
 from config import *
 
 import modules.utils as utils
-from modules.peep_workflow import PeepWorkflow
+from modules.peep import Peep
 
 import os
 from PIL import Image
@@ -60,40 +60,33 @@ def show_database():
 
 @app.route("/new_people", methods=['POST'])
 def new_people_processing():
-    print("ddd")
     if not request.files.getlist('fileInput'):
         print("No file part")
         error = "No file part"
         return  render_template('new_people.html', error=error)
 
     files = request.files.getlist('fileInput')
-    print(len(request.form), request.form)
-    print(len(files), type(files[0]), files)
+    #print(len(request.form), request.form)
+    #print(len(files), type(files[0]), files)
 
     file_urls = []
     for file in files:
         pillow_image = Image.open(io.BytesIO(file.read()))
         file_urls.append(pillow_image)
-    print(file_urls)
+    #print(file_urls)
 
     df_images = pd.DataFrame({'userFaces':file_urls, "userId": 16, "imageId":range(1, len(file_urls)+1)})
-    print(df_images)
+    #print(df_images)
 
-    workflow = PeepWorkflow()
-    workflow.run_from_dataframe(df_images)
-    eigenfaces_image = workflow.get_eigenfaces()
-    print(eigenfaces_image)
+    workflow = Peep()
+    workflow.run_from_dataframe(df_images, 25)
+    eigenfaces_image = workflow.get_eigenfaces_as_bytes()
+    #print(eigenfaces_image)
 
-    # Converti image pillow en binaire pour ne pas avoir a les save en memoire
-    eigenfaces_list = []
-    for image in eigenfaces_image:
-        buffered = io.BytesIO()
-        image.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
-        eigenfaces_list.append(img_str)
-    print(len(eigenfaces_list), eigenfaces_list)
+    noised_image = workflow.get_noisy_projected_data('bytes')
+   # print(noised_image)
 
-    return render_template("result.html", eigenfaces_list=eigenfaces_list)
+    return render_template("result.html", eigenfaces_list=eigenfaces_image+noised_image)
 
 # ---------------------------------------------------------------------------
 # ------------------------- BACK FUNCTIONS ----------------------------------

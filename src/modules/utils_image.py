@@ -3,6 +3,9 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import io
+import base64
+
 
 def load_images(image_folder, subject_prefix=None, image_extensions=(".png", ".jpg", ".jpeg")):
     images = []
@@ -89,3 +92,49 @@ def save_data(data, filename):
 
 def load_data(filename):
     return np.load(filename)
+
+
+def image_pillow_to_bytes(image):
+    """
+    Converts a PIL Image into base64 encoded byte string.
+
+    This function takes a PIL Image instance, saves it to an in-memory byte
+    buffer in JPEG format, encodes the image data into a base64 encoded string,
+    and then returns the resulting string.
+
+    :param image: The input PIL Image object to be converted.
+    :type image: PIL.Image.Image
+
+    :return: A base64 encoded string representation of the input image.
+    :rtype: str
+    """
+    if not isinstance(image, Image.Image):
+        raise ValueError("'image' must be a valid PIL Image object.")
+    buffer = io.BytesIO()
+    image.save(buffer, format='JPEG')
+    image = base64.b64encode(buffer.getvalue()).decode()
+    return image
+
+def image_numpy_to_pillow(image, resized_size=None):
+    """
+    Converts a NumPy image array to a Pillow Image object.
+
+    This function takes an image represented as a NumPy array, optionally reshapes it if it is
+    one-dimensional, and converts it to a Pillow Image. The image array is expected to have
+    pixel values normalized between 0 and 1.
+
+    :param image: A NumPy array representing the image to be converted.
+    :param resized_size: Optional tuple representing the new dimensions to reshape the image to,
+        if necessary. Expected to be (height, width).
+    :return: A Pillow Image object created from the input NumPy array, or None if the input
+        image is None.
+    """
+    if image is None or type(image) != np.ndarray:
+        raise ValueError("'image' must be a valid NumPy array.")
+    elif image.ndim == 1:
+        if resized_size is None:
+            raise ValueError("'resized_size' must be provided because the image is one-dimensional.")
+        image = image.reshape(resized_size)
+    return Image.fromarray((image * 255).astype(np.uint8))
+
+
