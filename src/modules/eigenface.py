@@ -1,9 +1,10 @@
+import os
 import numpy as np
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 from src.config import IMAGE_SIZE
-import os
 
 
 class EigenfaceGenerator:
@@ -15,18 +16,19 @@ class EigenfaceGenerator:
         self.mean_face = None
         self.image_shape = IMAGE_SIZE
 
-
     def generate(self):
         if not self.images.any():
             raise ValueError("No image given.")
 
         data = self.images
+        print("Inside EigenfaceGenerator.generate()")
+        print(f"Shape of input data: {data.shape}")
+        print(f"Are all input images identical? {np.allclose(data, data[0])}")
 
         self.pca = PCA(n_components=self.n_components)
         self.pca.fit(data)
         self.eigenfaces = [component.reshape(self.image_shape) for component in self.pca.components_]
         self.mean_face = self.pca.mean_.reshape(self.image_shape)
-
 
     def get_eigenfaces(self):
         if self.eigenfaces is None:
@@ -60,6 +62,7 @@ class EigenfaceGenerator:
             plt.show()
         plt.close()
 
+
     def plot_mean_face(self, output_folder, subject, show_plot=False):
         if self.mean_face is None:
             self.generate()
@@ -85,6 +88,7 @@ class EigenfaceGenerator:
         if show_plot:
             plt.show()
         plt.close()
+
 
     def analyze_eigenfaces(self, output_folder, show_plot=False):
         if self.eigenfaces is None:
