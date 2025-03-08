@@ -102,8 +102,8 @@ if __name__ == '__main__':
     #print(pca.components_.shape)
 
     ######################################################""
-    # A partir des noised images, regenerate les vecteurs une nouvelle pca pour les données a pca.inverse_transform()
-    # Ca devrait fonctionner
+    # A partir des noised images, regenerate les vecteurs avec une nouvelle pca pour les donner à pca.inverse_transform()
+    # Ca devrait fonctionner normalement :/
     ######################################################""
 
     # Test qui fonctionne pas
