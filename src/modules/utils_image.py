@@ -92,20 +92,21 @@ def save_data(data, filename):
 def load_data(filename):
     return np.load(filename)
 
-def image_pillow_to_bytes(image_pil):
+def image_pillow_to_bytes(image):
     """Converts a PIL Image to bytes."""
-    img_byte_arr = io.BytesIO()
-    image_pil.save(img_byte_arr, format='PNG')  # Or 'JPEG', etc.
-    img_byte_arr = img_byte_arr.getvalue()
-    return img_byte_arr
+    if not isinstance(image, Image.Image):
+        raise ValueError("'image' must be a valid PIL Image object.")
+    buffer = io.BytesIO()
+    image.save(buffer, format='JPEG')
+    image = base64.b64encode(buffer.getvalue()).decode()
+    return image
 
-def image_numpy_to_pillow(image_array, resize_size):
+def image_numpy_to_pillow(image, resized_size=None):
     """Converts a NumPy array to a PIL Image."""
-    # Ensure the image_array is within the valid range [0, 1]
-    image_array = np.clip(image_array, 0, 1)
-    # Scale to [0, 255] and convert to uint8
-    image_array = (image_array * 255).astype(np.uint8)
-    # Ensure the array is reshaped correctly if it's flattened
-    if image_array.ndim == 1:
-        image_array = image_array.reshape(resize_size)
-    return Image.fromarray(image_array)
+    if image is None or type(image) != np.ndarray:
+        raise ValueError("'image' must be a valid NumPy array.")
+    elif image.ndim == 1:
+        if resized_size is None:
+            raise ValueError("'resized_size' must be provided because the image is one-dimensional.")
+        image = image.reshape(resized_size)
+    return Image.fromarray((image * 255).astype(np.uint8))
