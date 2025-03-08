@@ -1,3 +1,5 @@
+import base64
+import io
 import os
 from PIL import Image
 import numpy as np
@@ -89,3 +91,21 @@ def save_data(data, filename):
 
 def load_data(filename):
     return np.load(filename)
+
+def image_pillow_to_bytes(image_pil):
+    """Converts a PIL Image to bytes."""
+    img_byte_arr = io.BytesIO()
+    image_pil.save(img_byte_arr, format='PNG')  # Or 'JPEG', etc.
+    img_byte_arr = img_byte_arr.getvalue()
+    return img_byte_arr
+
+def image_numpy_to_pillow(image_array, resize_size):
+    """Converts a NumPy array to a PIL Image."""
+    # Ensure the image_array is within the valid range [0, 1]
+    image_array = np.clip(image_array, 0, 1)
+    # Scale to [0, 255] and convert to uint8
+    image_array = (image_array * 255).astype(np.uint8)
+    # Ensure the array is reshaped correctly if it's flattened
+    if image_array.ndim == 1:
+        image_array = image_array.reshape(resize_size)
+    return Image.fromarray(image_array)

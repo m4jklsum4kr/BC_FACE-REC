@@ -7,11 +7,12 @@ from src.config import IMAGE_SIZE
 from src.modules.image_preprocessing import preprocess_image
 from src.modules.eigenface import EigenfaceGenerator
 from tqdm import tqdm
+from src.modules.utils_image import image_numpy_to_pillow, image_pillow_to_bytes
 
 
 class Peep:
     def __init__(self, image_folder=None, subject_prefix=None,
-                 image_extensions=(".png", ".jpg", ".jpeg")):
+                 image_extensions=(".png", ".jpg", ".jpeg"), target_subject=None):  # Added target_subject
         self.image_folder = image_folder
         self.subject_prefix = subject_prefix
         self.resize_size = IMAGE_SIZE
@@ -20,11 +21,12 @@ class Peep:
         self.pca_objects = {}
         self.all_eigenfaces = []
         self.processed_images_data = []
-        self.max_components = 20
+        self.max_components = None
         self.projected_data = {}
         self.noisy_projected_data = {}
         self.epsilon = None
         self.sensitivity = {}
+        self.target_subject = target_subject  # Store target_subject
 
     def _load_and_preprocess_images_from_folder(self):
         if not self.image_folder:
@@ -42,6 +44,10 @@ class Peep:
 
                 subject_number = int(parts[1])
                 imageId = int(parts[2])
+
+                # Filter by target_subject if it's provided
+                if self.target_subject is not None and subject_number != self.target_subject:
+                    continue
 
                 if self.subject_prefix and str(subject_number) != self.subject_prefix:
                     continue
@@ -90,7 +96,13 @@ class Peep:
             try:
                 img = row['userFaces']
                 image_id = row['imageId']
-                subject_number = 15
+                subject_number = 15  # Or get from DataFrame if available
+
+                 # Filter by target_subject if it's provided
+                if self.target_subject is not None and subject_number != self.target_subject:
+                    continue
+
+
                 if not isinstance(img, Image.Image):
                     raise ValueError(f"Invalid image type at index {index}.")
 
@@ -120,8 +132,7 @@ class Peep:
 
         self.df = pd.DataFrame(data)
         return True
-
-    def _generate_eigenfaces(self):
+    def _generate_eigenfaces(self, pt_n_components=None, perf_test=False):
         if self.df is None:
             print("DataFrame not initialized. Run a loading/preprocessing method first.")
             return False
@@ -129,10 +140,13 @@ class Peep:
         self.all_eigenfaces = []
         self.pca_objects = {}
 
-        if 'subject_number' in self.df.columns:
+        # Use target_subject if provided, otherwise process all subjects
+        if self.target_subject is not None:
+            subjects = [self.target_subject]
+        elif 'subject_number' in self.df.columns:
             subjects = self.df['subject_number'].unique()
         elif 'imageId' in self.df.columns:
-            subjects = [15]
+            subjects = [15]  # Or some default subject ID
         else:
             raise ValueError("DataFrame must contain 'subject_number' or 'imageId' column.")
 
@@ -147,7 +161,11 @@ class Peep:
                 continue
 
             images_for_subject = np.array(subject_df['flattened_image'].tolist(), dtype=np.float64)
-            n_components = min(len(images_for_subject) - 1, self.max_components)
+            self.max_components = len(images_for_subject)
+            if not perf_test:
+                n_components = min(len(images_for_subject) - 1, self.max_components)
+            else:
+                n_components = pt_n_components
 
             if n_components == 0:
                 print(f"Warning: Only one image for subject {subject}. Skipping PCA.")
@@ -169,6 +187,7 @@ class Peep:
                 subject_df = self.df[self.df['subject_number'] == subject]
             else:
                 subject_df = self.df
+
             if subject_df.empty:
                 continue
 
@@ -185,14 +204,13 @@ class Peep:
         for subject, pca_generator in self.pca_objects.items():
             if method == 'bounded':
                 max_image_diff_norm = np.sqrt(2)
-                sensitivity = max_image_diff_norm * np.linalg.norm(pca_generator.pca.components_,
-                                                                   ord=2)
+                sensitivity = max_image_diff_norm * np.linalg.norm(pca_generator.pca.components_, ord=2)
                 self.sensitivity[subject] = sensitivity
 
             elif method == 'unbounded':
                 if unbounded_bound_type == 'l2':
                     max_image_norm = np.sqrt(self.resize_size[0] * self.resize_size[1])
-                    sensitivity = (2 * max_image_norm ** 2) / len(self.df)  # A conservative bound
+                    sensitivity = (2 * max_image_norm ** 2) / len(self.df)
                     self.sensitivity[subject] = sensitivity
 
                 elif unbounded_bound_type == 'empirical':
@@ -203,9 +221,9 @@ class Peep:
                             diff = np.linalg.norm(images_for_subject[i] - images_for_subject[j])
                             max_diff = max(max_diff, diff)
                     self.sensitivity[subject] = max_diff
+
                 else:
                     raise ValueError("Invalid unbounded_bound_type")
-
     def get_sensitivity(self):
         return self.sensitivity
 
@@ -213,39 +231,33 @@ class Peep:
         self.epsilon = epsilon
 
     def _add_laplace_noise_to_projections(self):
-        """Adds Laplace noise to projected feature vectors for Local Differential Privacy.
+        if self.epsilon is None or not self.sensitivity:
+            raise ValueError("Epsilon and sensitivity must be set before adding noise.")
 
-        Add noise to each feature vector (projection) in self.projected_data. Noise
-        is drawn from a Laplace distribution, calibrated for differential privacy.
-
-        Key Concepts:
-            - Local Differential Privacy (LDP): Privacy per image (or person, unbounded).
-            - Laplace Mechanism: Add noise from Laplace(0, scale).
-            - Sensitivity (Δf): Calculated in _calculate_sensitivity().
-            - Epsilon (ε): Privacy budget (set by set_epsilon()).
-            - Scale (b):  b = Δf / ε
-
-        Steps:
-
-        1. Check: Ensure epsilon and sensitivity are set. Raise ValueError if not.
-        2. Loop: Iterate through subjects in `self.projected_data`.
-        3. Scale: Calculate scale = sensitivity[subject] / epsilon.
-        4. Noise: Generate noise: np.random.laplace(loc=0, scale=scale, size=projected_images.shape).
-           *CRUCIAL*: noise.shape MUST match projected_images.shape.
-        5. Add: Add noise to projected_images.
-        6. Store: Store in `self.noisy_projected_data[subject]`.
-
-        Example (inside loop):
-
-            scale = ...  # Calculate scale
+        self.noisy_projected_data = {}
+        for subject, projected_images in self.projected_data.items():
+            scale = self.sensitivity[subject] / self.epsilon
             noise = np.random.laplace(loc=0, scale=scale, size=projected_images.shape)
             self.noisy_projected_data[subject] = projected_images + noise
-        """
 
-    def get_noisy_projected_data(self):
-        return self.noisy_projected_data
+    def get_noisy_projected_data(self, format='numpy'):
+        if format == 'numpy':
+            return self.noisy_projected_data
+        pillow_images = []
+        for subject, noisy_projections in self.noisy_projected_data.items():
+            if subject in self.pca_objects:
+                for noisy_projection in noisy_projections:
+                    reconstructed_noisy = self.pca_objects[subject].pca.inverse_transform(noisy_projection.reshape(1, -1))
+                    img = image_numpy_to_pillow(reconstructed_noisy.flatten(), self.resize_size)
+                    pillow_images.append(img)
+        if format == 'pillow':
+            return pillow_images
+        elif format == 'bytes':
+            return [image_pillow_to_bytes(img) for img in pillow_images]
+        else:
+            raise ValueError("'format' must be numpy, pillow or bytes")
 
-    def run_with_dp_from_folder(self, epsilon, method='bounded', unbounded_bound_type='l2'):
+    def run_from_folder(self, epsilon, method='bounded', unbounded_bound_type='l2'):
         if not self._load_and_preprocess_images_from_folder():
             return False
         if not self._generate_eigenfaces():
@@ -256,7 +268,7 @@ class Peep:
         self._add_laplace_noise_to_projections()
         return True
 
-    def run_with_dp_from_dataframe(self, input_df, epsilon, method='bounded', unbounded_bound_type='l2'):
+    def run_from_dataframe(self, input_df, epsilon, method='bounded', unbounded_bound_type='l2'):
         if not self._load_and_preprocess_images_from_dataframe(input_df):
             return False
         if not self._generate_eigenfaces():
@@ -275,12 +287,12 @@ class Peep:
                 continue
             if eigenface.ndim == 1:
                 eigenface = eigenface.reshape(self.resize_size)
-            pil_image = Image.fromarray((eigenface * 255).astype(np.uint8))
+            pil_image = Image.fromarray((np.clip(eigenface, 0, 1) * 255).astype(np.uint8))
             pil_eigenfaces.append(pil_image)
         return pil_eigenfaces
 
     def get_eigenfaces_as_pil(self):
-        eigenfaces = self.get_eigenfaces()  # Get all eigenfaces
+        eigenfaces = self.get_eigenfaces()
         return self._eigenfaces_to_pil(eigenfaces)
 
     def get_eigenfaces(self):
@@ -350,53 +362,39 @@ class Peep:
 
     def generate_analysis_report(self, filename="eigenface_analysis_report.txt"):
         """
-        Generates a comprehensive report of the eigenface analysis, including:
-            - Overall information (epsilon, method, etc.)
-            - Per-subject information:
-                - Number of images
-                - Static component analysis
-                - Top/bottom variant components
-                - Explained variance ratio (top components)
-            - Summary statistics
-
-        Writes the report to a text file.
-
-        Args:
-            filename: The name of the file to write the report to.
+        Generates a comprehensive report of the eigenface analysis.
         """
-
         analysis_results = self.analyze_eigenfaces()
 
         with open(filename, "w") as f:
             f.write("Eigenface Analysis Report\n")
             f.write("=" * 30 + "\n\n")
 
-            # --- Overall Information ---
+            # Overall Information
             f.write("Overall Parameters:\n")
             f.write(f"  Image Folder: {self.image_folder}\n")
             f.write(f"  Subject Prefix: {self.subject_prefix}\n")
             f.write(f"  Epsilon: {self.epsilon}\n")
-            f.write(f"  Method: {method}\n")  # Assuming 'method' is defined in the main script
-            if method == 'unbounded':
-                f.write(f"  Unbounded Bound Type: {unbounded_bound_type}\n") # Assuming unbounded_bound_type is defined
+            if hasattr(self, 'method'):  # Check if 'method' attribute exists
+                f.write(f"  Method: {self.method}\n")
+                if self.method == 'unbounded' and hasattr(self,
+                                                          'unbounded_bound_type'):  # Check unbounded_bound_type
+                    f.write(f"  Unbounded Bound Type: {self.unbounded_bound_type}\n")
             f.write(f"  Image Resize Size: {self.resize_size}\n\n")
 
-
-            # --- Per-Subject Information ---
+            # Per-Subject Information
             for subject, results in analysis_results.items():
                 f.write(f"Subject: {subject}\n")
-
-                # Number of images for this subject
                 if 'subject_number' in self.df.columns:
                     num_images = len(self.df[self.df['subject_number'] == subject])
-                else: #Case of dataframe
+                else:
                     num_images = len(self.df)
                 f.write(f"  Number of Images: {num_images}\n")
 
                 if results["static_components_present"]:
                     f.write("  WARNING: Static components found!\n")
-                    f.write(f"  Indices of static components: {results['static_component_indices']}\n")
-                    # Find top 5 most and least variant components (excluding static)
+                    f.write(f"  Indices of static components: {len(results['static_component_indices'])}\n")
+
                     non_static_variances = [(i, var) for i, var in enumerate(results["per_component_variance"])
                                             if i not in results['static_component_indices']]
                     if non_static_variances:
@@ -404,18 +402,16 @@ class Peep:
                         top_5_variant = non_static_variances[:5]
                         bottom_5_variant = non_static_variances[-5:]
 
-                        f.write(f"  Top 5 most variant components (index, variance):\n")
+                        f.write("  Top 5 most variant components (index, variance):\n")
                         for i, var in top_5_variant:
                             f.write(f"    - Component {i}: {var:.6f}\n")
-                        f.write(f"  Top 5 least variant components (excluding static) (index, variance):\n")
+                        f.write("  Top 5 least variant components (excluding static) (index, variance):\n")
                         for i, var in bottom_5_variant:
                             f.write(f"    - Component {i}: {var:.6f}\n")
-
                 else:
                     f.write("  No static components found.\n")
-                    # Find top 5 most and least variant components
                     all_variances = [(i, var) for i, var in enumerate(results["per_component_variance"])]
-                    all_variances.sort(key=lambda x: x[1], reverse=True)  # Sort by variance
+                    all_variances.sort(key=lambda x: x[1], reverse=True)
                     top_5_variant = all_variances[:5]
                     bottom_5_variant = all_variances[-5:]
 
@@ -426,97 +422,19 @@ class Peep:
                     for i, var in bottom_5_variant:
                         f.write(f"    - Component {i}: {var:.6f}\n")
 
-                # Explained Variance Ratio (Top Components)
-                if subject in self.pca_objects: #Check if exist
+                if subject in self.pca_objects:
                     explained_variance = self.pca_objects[subject].pca.explained_variance_ratio_
-                    f.write(f"  Explained Variance Ratio (Top 5):\n")
-                    for i in range(min(5, len(explained_variance))):  # Show top 5 (or fewer)
+                    f.write("  Explained Variance Ratio (Top 5):\n")
+                    for i in range(min(5, len(explained_variance))):
                         f.write(f"    - Component {i}: {explained_variance[i]:.6f}\n")
-
 
                 f.write("-" * 20 + "\n")
 
-            # --- Summary Statistics ---
+            # Summary Statistics
             f.write("\nSummary Statistics:\n")
             total_subjects = len(analysis_results)
-            subjects_with_static = sum(1 for results in analysis_results.values() if results["static_components_present"])
+            subjects_with_static = sum(
+                1 for results in analysis_results.values() if results["static_components_present"])
             f.write(f"  Total Subjects: {total_subjects}\n")
             f.write(f"  Subjects with Static Components: {subjects_with_static}\n")
 
-if __name__ == "__main__":
-    # --- Configuration ---
-    image_folder = "../../data/database"
-    epsilon = 1.0
-    method = 'bounded'
-    unbounded_bound_type = 'l2'
-
-    peep = Peep(image_folder=image_folder)
-
-    if peep.run_with_dp_from_folder(epsilon=epsilon, method=method, unbounded_bound_type=unbounded_bound_type):
-        print("Differential privacy processing attempted (but noise addition is incomplete)!")
-
-        noisy_data = peep.get_noisy_projected_data()
-        print("\nNoisy Projected Data (currently empty because _add_laplace_noise_to_projections is not implemented):")
-        if noisy_data:
-            first_subject = list(noisy_data.keys())[0]
-            print(noisy_data[first_subject][:5])
-        else:
-            print("Noisy projected data is empty.")
-
-        projected_data = peep.get_projected_data()
-        print("\nOriginal Projected Data (first 5 rows of the first subject):")
-        if projected_data:
-            first_subject = list(projected_data.keys())[0]
-            print(projected_data[first_subject][:5])
-        else:
-            print("Projected data is empty.")
-
-        sensitivity = peep.get_sensitivity()
-        print("\nSensitivity:", sensitivity)
-
-        mean_faces = peep.get_mean_faces()
-        print("\nMean Faces (showing the first one):")
-        if mean_faces:
-            first_mean_face = list(mean_faces.values())[0]
-            first_mean_face.show()
-        else:
-            print("Mean faces data is emty")
-
-        eigenfaces_pil = peep.get_eigenfaces_as_pil()
-        print(f"\nEigenfaces as PIL Images:")
-
-        if eigenfaces_pil:
-            first_subject_eigenfaces = eigenfaces_pil
-            if first_subject_eigenfaces:
-                first_subject_eigenfaces[0].show()
-
-        else:
-            print("No eigenfaces generated.")
-
-        raw_data_df = peep.get_raw_data()
-        print("\nRaw Data .info :\n")
-        print(raw_data_df.info())
-
-        pca_components = peep.get_pca_components()
-        print("\nPCA Components:")
-        if pca_components:
-            first_subject = list(pca_components.keys())[0]
-            print("Shape for the first subject:", pca_components[first_subject].shape)
-        else:
-            print("No PCA component")
-
-        # Get PCA explained variance
-        explained_variance = peep.get_pca_explained_variance()
-        print("\nPCA Explained Variance:")
-        if explained_variance:
-            first_subject = list(explained_variance.keys())[0]
-            print("First subject:", explained_variance[first_subject])
-        else:
-            print("No PCA explained variance")
-
-        peep.analyze_eigenfaces()
-
-        peep.generate_analysis_report()
-
-    else:
-        print("An error occurred during processing.")
