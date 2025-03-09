@@ -24,6 +24,7 @@ from config import *
 
 import modules.utils as utils
 from modules.peep import Peep
+from modules.main import Main
 
 import os
 from PIL import Image
@@ -75,18 +76,15 @@ def new_people_processing():
         file_urls.append(pillow_image)
     #print(file_urls)
 
-    df_images = pd.DataFrame({'userFaces':file_urls, "userId": 16, "imageId":range(1, len(file_urls)+1)})
+    id_sujet = 16
+    df_images = pd.DataFrame({'userFaces':file_urls, "subject_number": id_sujet, "imageId":range(1, len(file_urls)+1)})
     #print(df_images)
 
-    workflow = Peep()
-    workflow.run_from_dataframe(df_images, 25)
-    eigenfaces_image = workflow.get_eigenfaces_as_bytes()
-    #print(eigenfaces_image)
+    workflow = Main().load_and_process_from_dataframe(df=df_images, target_subject=id_sujet, epsilon=6, method='bounded', unbounded_bound_type='l2').get(id_sujet)
+    eigenfaces_images = workflow.get_eigenfaces('bytes')
+    noised_images = workflow.get_noised_images('bytes')
 
-    noised_image = workflow.get_noisy_data('bytes')
-   # print(noised_image)
-
-    return render_template("result.html", eigenfaces_list=eigenfaces_image+noised_image)
+    return render_template("result.html", eigenfaces_list=eigenfaces_images+noised_images)
 
 # ---------------------------------------------------------------------------
 # ------------------------- BACK FUNCTIONS ----------------------------------

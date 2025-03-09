@@ -58,7 +58,7 @@ class Main:
     def load_and_process_from_dataframe(self, df: pd.DataFrame, target_subject: int = None,
                                      epsilon: int = 9, method='bounded', unbounded_bound_type='l2'):
         """Loads, preprocesses images, and creates Peep objects from a Pandas DataFrame."""
-        if 'userFaces' not in df.columns or 'imageId' not in df.columns:
+        if 'userFaces' not in df.columns or 'imageId' not in df.columns or 'subject_number' not in df.columns:
             raise ValueError("DataFrame must contain 'userFaces' (PIL Images) and 'imageId' columns.")
 
         subject_data = {}
@@ -68,8 +68,6 @@ class Main:
                 img = row['userFaces']
                 if 'subject_number' in df.columns:
                     subject_number = row['subject_number']
-                else:
-                    subject_number = 15  # Default subject ID
 
                 if target_subject is not None and subject_number != target_subject:
                     continue
