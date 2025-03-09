@@ -1,3 +1,5 @@
+import base64
+import io
 import os
 from PIL import Image
 import numpy as np
@@ -89,3 +91,22 @@ def save_data(data, filename):
 
 def load_data(filename):
     return np.load(filename)
+
+def image_pillow_to_bytes(image):
+    """Converts a PIL Image to bytes."""
+    if not isinstance(image, Image.Image):
+        raise ValueError("'image' must be a valid PIL Image object.")
+    buffer = io.BytesIO()
+    image.save(buffer, format='JPEG')
+    image = base64.b64encode(buffer.getvalue()).decode()
+    return image
+
+def image_numpy_to_pillow(image, resized_size=None):
+    """Converts a NumPy array to a PIL Image."""
+    if image is None or type(image) != np.ndarray:
+        raise ValueError("'image' must be a valid NumPy array.")
+    elif image.ndim == 1:
+        if resized_size is None:
+            raise ValueError("'resized_size' must be provided because the image is one-dimensional.")
+        image = image.reshape(resized_size)
+    return Image.fromarray((image * 255).astype(np.uint8))
