@@ -30,16 +30,16 @@ class TestPeep(unittest.TestCase):
         eigenfaces = workflow.get_eigenfaces()
         self.assertGreater(len(eigenfaces), 0)  # Check for at least one eigenface
 
-        noisy_data = workflow.get_noisy_data()
+        noisy_data = workflow.get_noised_images()
         self.assertIsNotNone(noisy_data)
         self.assertIn(15, noisy_data)
         self.assertTrue(isinstance(noisy_data[15], np.ndarray))
 
-        noisy_pillow = workflow.get_noisy_data(format='pillow')
+        noisy_pillow = workflow.get_noised_images(format='pillow')
         self.assertGreater(len(noisy_pillow), 0)  # Check for PIL Image outputs
         self.assertTrue(all(isinstance(img, Image.Image) for img in noisy_pillow))
 
-        noisy_bytes = workflow.get_noisy_data(format='bytes')
+        noisy_bytes = workflow.get_noised_images(format='bytes')
         self.assertGreater(len(noisy_bytes), 0)
         self.assertTrue(all(isinstance(b, bytes) for b in noisy_bytes))
 
@@ -73,7 +73,7 @@ class TestPeep(unittest.TestCase):
         eigenfaces = workflow.get_eigenfaces()
         self.assertGreater(len(eigenfaces), 0)
 
-        noisy_data = workflow.get_noisy_data()
+        noisy_data = workflow.get_noised_images()
         self.assertIsNotNone(noisy_data)
         self.assertIn(15, noisy_data) # Correct the subject key.
         self.assertEqual(len(noisy_data[15]), len(sample_images)) # Check length
