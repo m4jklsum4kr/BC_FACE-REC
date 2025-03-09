@@ -15,12 +15,14 @@ class EigenfaceGenerator:
         self.eigenfaces = None
         self.mean_face = None
         self.image_shape = IMAGE_SIZE
+        self.original_data = None
 
     def generate(self):
         if not self.images.any():
             raise ValueError("No image given.")
 
         data = self.images
+        self.original_data = data # ADD THIS LINE
         print("Inside EigenfaceGenerator.generate()")
         print(f"Shape of input data: {data.shape}")
         print(f"Are all input images identical? {np.allclose(data, data[0])}")

@@ -83,7 +83,7 @@ def new_people_processing():
     eigenfaces_image = workflow.get_eigenfaces_as_bytes()
     #print(eigenfaces_image)
 
-    noised_image = workflow.get_noisy_projected_data('bytes')
+    noised_image = workflow.get_noisy_data('bytes')
    # print(noised_image)
 
     return render_template("result.html", eigenfaces_list=eigenfaces_image+noised_image)
