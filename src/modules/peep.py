@@ -44,7 +44,7 @@ class Peep:
         if self.pca_object is None:
             raise ValueError("Eigenfaces must be generated before projecting images.")
 
-        self.projected_data = self.pca_object.pca.transform(images_data)
+        self.projected_images = self.pca_object.pca.transform(images_data)
 
 
     def _calculate_sensitivity(self, method='bounded', unbounded_bound_type='l2'):
@@ -59,13 +59,13 @@ class Peep:
         elif method == 'unbounded':
             if unbounded_bound_type == 'l2':
                 max_image_norm = np.sqrt(self.resize_size[0] * self.resize_size[1])
-                sensitivity = (2 * max_image_norm ** 2) / len(self.projected_data)
+                sensitivity = (2 * max_image_norm ** 2) / len(self.projected_images)
 
             elif unbounded_bound_type == 'empirical':
                 max_diff = 0
-                for i in range(len(self.projected_data)):
-                    for j in range(i + 1, len(self.projected_data)):
-                        diff = np.linalg.norm(self.projected_data[i] - self.projected_data[j])
+                for i in range(len(self.projected_images)):
+                    for j in range(i + 1, len(self.projected_images)):
+                        diff = np.linalg.norm(self.projected_images[i] - self.projected_images[j])
                         max_diff = max(max_diff, diff)
                 sensitivity = max_diff
             else:
@@ -128,18 +128,18 @@ class Peep:
         return mean_face_image
 
     def get_projected_data(self):
-        return self.projected_data
+        return self.projected_images
 
     def get_noisy_data(self, format='numpy'):
-        if self.noisy_projected_data is None:
+        if self.noisy_pca_projections is None:
             return None
 
         if format == 'numpy':
-            return self.noisy_projected_data
+            return self.noisy_pca_projections
 
         pillow_images = []
         if self.pca_object:
-            for noisy_projection in self.noisy_projected_data:
+            for noisy_projection in self.noisy_pca_projections:
                 reconstructed_noisy = self.pca_object.pca.inverse_transform(noisy_projection.reshape(1, -1))
                 img = image_numpy_to_pillow(reconstructed_noisy.flatten(), self.resize_size)
                 pillow_images.append(img)
