@@ -6,7 +6,7 @@ from src.modules.utils_image import image_numpy_to_pillow
 from functools import reduce
 import operator
 from PIL import Image, ImageDraw
-
+from main import Main
 
 def combine_pill_images_lists(image_lists, delimiter_color=(0, 0, 0), delimiter_width=10):
     """Combine a list of lists of PIL.Image.Images into a single image."""
@@ -41,7 +41,7 @@ def import_subject_images(id):
         if filename.startswith(sujet):
             pillow_image = Image.open(f"{image_folder}/{filename}")
             image_file.append(pillow_image)
-    return DataFrame({'userFaces':image_file, "userId": 16, "imageId":range(1, len(image_file)+1)})
+    return DataFrame({'userFaces':image_file, "subject_number": id, "imageId":range(1, len(image_file)+1)})
 
 
 
@@ -56,9 +56,11 @@ def generate_noise_on_eigenface_images(subject=1, epsilon=5,
     if show_img: image_df['userFaces'][show_img].show() # show image source
 
     # Generate Eigenfaces [images are resized in this process]
-    peep = Peep()
-    peep.run_from_dataframe(image_df, epsilon)
+    id_sujet = image_df['subject_number'][0]
+    print(id_sujet)
+    peep = Main().load_and_process_from_dataframe(df=image_df, target_subject=id_sujet, epsilon=6, method='bounded', unbounded_bound_type='l2').get(id_sujet)
     eigenfaces_list = peep.get_eigenfaces()
+
     #print(len(eigenfaces_list))
     #print(eg1.shape)
     #print(eg1.min(), eg1.max())
@@ -142,9 +144,9 @@ def generate_noise_on_projected_data(subject=1, epsilon=5):
 
 
 
-def wf_pil_image():
+def wf_pil_image(subject=1):
     for e in np.arange(0.5, 9.5, 0.25):
-        generate_noise_on_eigenface_images(subject=1, epsilon=e, show_img=False, export_img=True)
+        generate_noise_on_eigenface_images(subject=subject, epsilon=e, show_img=False, export_img=True)
 
 
 def wf_pil_vector():
@@ -164,20 +166,24 @@ def wf_pil_vector():
 
 if __name__ == '__main__':
 
-    #wf_pil_image()
+    [wf_pil_image(id) for id in range(1, 16)]
     #wf_pil_vector()
     #noised_vectors, peep = generate_noise_on_projected_data(subject=1, epsilon=4)
 
-    noised_images, peep = generate_noise_on_eigenface_images(subject=1, epsilon=4, show_img=False, export_img=True)
+    #noised_images, peep = generate_noise_on_eigenface_images(subject=1, epsilon=4, show_img=False, export_img=True)
 
-    noiseImg = noised_images[3]
-    pca = peep.pca_objects[15].pca
+    #noiseImg = noised_images[3]
+    #pca = peep.pca_objects[15].pca
     #image_numpy_to_pillow(noiseImg, (100, 100)).show()
 
-    print(noised_images.shape)
-    print(pca.components_.shape)
+    #print(noised_images.shape)
+    #print(pca.components_.shape)
 
-    reconstructed_noisy = pca.inverse_transform(noiseImg)
+    #reconstructed_noisy = pca.inverse_transform(noiseImg)
+
+
+
+
 
     ######################################################""
     # A partir des noised images, regenerate les vecteurs avec une nouvelle pca pour les donner à pca.inverse_transform()
