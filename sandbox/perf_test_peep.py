@@ -1,148 +1,149 @@
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 from PIL import Image
 from tqdm import tqdm
-import time
-from skimage.metrics import structural_similarity as ssim, mean_squared_error
-from src.modules.main import Main
+import matplotlib.pyplot as plt
+from skimage.metrics import structural_similarity as ssim
+from src.modules.image_preprocessing import preprocess_image
+from src.modules.peep import Peep
 from src.config import IMAGE_SIZE
 from src.modules.noise_generator import NoiseGenerator
+from src.modules.utils_image import image_numpy_to_pillow
 
 
-def performance_test(image_folder: str, output_folder: str,
-                     epsilon_values: list, n_components_ratios: list,
-                     method='bounded', unbounded_bound_type='l2',
-                     num_examples: int = 5):  # Add num_examples parameter
+def calculate_mse(imageA, imageB):
+    """Calculates the Mean Squared Error (MSE) between two images."""
+    err = np.sum((imageA.astype("float") - imageB.astype("float")) ** 2)
+    err /= float(imageA.shape[0] * imageA.shape[1])
+    return err
+
+def perf_test(image_folder: str, output_folder: str, epsilon_values: list, n_components_ratios: list, num_examples: int, image_size=IMAGE_SIZE):
     """
-    Performs performance tests, varying both epsilon and n_components_ratio.
-    Generates:
-      - Combined MSE/SSIM vs. Epsilon (for each n_components_ratio)
-      - Superimposed MSE vs. n_components (for all epsilons)
-      - Superimposed SSIM vs. n_components (for all epsilons)
-      - Combined Results Visualizations (controlled by num_examples)
+    Performs performance tests on the Peep system.
     """
 
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+    if not os.path.isdir(image_folder):
+        raise ValueError(f"The provided image folder '{image_folder}' is not a directory.")
 
     plots_folder = os.path.join(output_folder, "plots")
-    combined_results_folder = os.path.join(plots_folder, "combined_results")
-    if not os.path.exists(combined_results_folder):
-        os.makedirs(combined_results_folder)
+    examples_folder = os.path.join(output_folder, "examples")
+    os.makedirs(plots_folder, exist_ok=True)
+    os.makedirs(examples_folder, exist_ok=True)
 
     results = {}
-    main_processor = Main(image_size=IMAGE_SIZE)
+    errors = []
 
-    all_subjects = set()
-    for filename in os.listdir(image_folder):
-        if filename.lower().endswith(main_processor.image_extensions):
-            parts = filename.split("_")
-            if len(parts) >= 2:
-                try:
-                    subject_number = int(parts[1])
-                    all_subjects.add(subject_number)
-                except ValueError:
-                    pass
-
-    for epsilon in tqdm(epsilon_values, desc="Testing epsilon values"):
+    for epsilon in tqdm(epsilon_values, desc="Epsilon values"):
         results[epsilon] = {}
-        for n_components_ratio in tqdm(n_components_ratios, desc="Testing n_components ratios", leave=False):
-
+        for n_components_ratio in tqdm(n_components_ratios, desc="n_components ratios", leave=False):
             results[epsilon][n_components_ratio] = {
-                'avg_mse': [],
-                'avg_ssim': [],
+                'avg_mse': 0,
+                'avg_ssim': 0,
                 'example_images': {}
             }
+            mse_values = []
+            ssim_values = []
+            subject_images = {}
 
-            all_reconstructed_images = []
-            all_original_images = []
-
-            for subject in tqdm(all_subjects, desc=f"Processing subjects for ε={epsilon}, n={n_components_ratio}", leave=False):
-                peep_objects = main_processor.load_and_process_from_folder(
-                    image_folder, target_subject=subject, epsilon=epsilon,
-                    method=method, unbounded_bound_type=unbounded_bound_type
-                )
-
-                if not peep_objects:
+            for filename in os.listdir(image_folder):
+                if not filename.lower().endswith((".png", ".jpg", ".jpeg")):
                     continue
 
-                peep_obj = peep_objects.get(subject)
-                if peep_obj is None:
+                try:
+                    parts = filename.split("_")
+                    if len(parts) < 4:
+                        raise ValueError(f"Filename '{filename}' has an invalid format.")
+                    subject_number = int(parts[1])
+                    image_path = os.path.join(image_folder, filename)
+
+                    with Image.open(image_path) as img:
+                        processed_data = preprocess_image(img, resize_size=image_size, create_flattened=True)
+                        if processed_data and processed_data['flattened_image'] is not None:
+                            if subject_number not in subject_images:
+                                subject_images[subject_number] = []
+                            subject_images[subject_number].append((processed_data['flattened_image'], processed_data['resized_image']))
+                        else:
+                            errors.append(f"Skipping {filename} due to preprocessing error.")
+
+                except (IOError, OSError, ValueError) as e:
+                    errors.append(f"Error processing {filename}: {e}")
                     continue
 
-                # --- Calculate n_components and update PCA ---
-                n_components = int(n_components_ratio * peep_obj.max_components)
-                n_components = max(1, n_components)
+            for subject, images_data in subject_images.items():
+                if not images_data:
+                    continue
 
-                peep_obj._generate_eigenfaces(peep_obj.pca_object.original_data, pt_n_components=n_components, perf_test=True)
-                peep_obj._project_images(peep_obj.pca_object.original_data)
-                peep_obj._calculate_sensitivity(method, unbounded_bound_type)
+                flattened_images, resized_images = zip(*images_data)
+                flattened_images_array = np.array(flattened_images)
+                n_components = int(n_components_ratio * flattened_images_array.shape[0])
+                n_components = max(1, min(n_components, flattened_images_array.shape[0] - 1))
 
-                # --- Project, then add noise ---
-                projected_images = peep_obj.projected_vectors
-                noise_generator = NoiseGenerator(projected_images, epsilon)
-                noise_generator.flatten_images()
-                noise_generator.normalize_images()
-                noise_generator.add_laplace_noise()
-                noised_projected_images = noise_generator.get_noised_eigenfaces()
+                try:
+                    peep = Peep(epsilon=epsilon, image_size=image_size)
+                    peep.run(flattened_images_array, method='bounded', n_components=n_components)
 
-                # --- Reconstruction and Metrics ---
-                original_images = peep_obj.pca_object.original_data
-                if noised_projected_images is not None:
-                    reconstructed_images = peep_obj.pca_object.pca.inverse_transform(noised_projected_images)
-                    reconstructed_images = np.clip(reconstructed_images, 0, 1)
-                else:
-                    reconstructed_images = np.zeros_like(original_images)
+                    noise_generator = NoiseGenerator(peep.projected_vectors, peep.epsilon)
+                    noise_generator.normalize_images()
+                    noise_generator.add_laplace_noise(peep.sensitivity)
+                    noised_projections = noise_generator.get_noised_eigenfaces()
 
-                all_reconstructed_images.extend(reconstructed_images)
-                all_original_images.extend(original_images)
+                    noised_reconstructed_images = peep.pca_object.reconstruct_image(noised_projections)
+                    noised_reconstructed_images = [
+                        image_numpy_to_pillow(img.reshape(image_size))
+                        for img in noised_reconstructed_images
+                    ]
 
 
-                # --- Store example images (controlled by num_examples) ---
-                if subject not in results[epsilon][n_components_ratio]['example_images']:
-                    # Store examples only if we haven't reached the limit
-                    if len(results[epsilon][n_components_ratio]['example_images']) < num_examples:
-                        if len(original_images) > 0 and len(reconstructed_images) > 0:
+                    eigenfaces = peep.get_eigenfaces(format='pillow')
+
+                    # --- Noised Eigenface ---
+                    noised_eigenfaces = []
+                    if peep.pca_object.pca.components_.size > 0:
+                        for i in range(min(5, peep.pca_object.n_components)):
+                            noise_gen_eigen = NoiseGenerator(peep.pca_object.pca.components_[i].reshape(1, -1),
+                                                             peep.epsilon)
+                            noise_gen_eigen.normalize_images()
+                            noise_gen_eigen.add_laplace_noise(peep.sensitivity)
+                            noised_eigenface = noise_gen_eigen.get_noised_eigenfaces()
+                            noised_eigenface_reshaped = noised_eigenface.reshape(image_size)
+                            noised_eigenfaces.append(image_numpy_to_pillow(noised_eigenface_reshaped))
+
+                    if subject not in results[epsilon][n_components_ratio]['example_images'] and len(resized_images) >= num_examples:
+                        for i in range(min(num_examples, len(resized_images))):
                             results[epsilon][n_components_ratio]['example_images'][subject] = {
-                                'original': Image.fromarray((original_images[0].reshape(IMAGE_SIZE) * 255).astype(np.uint8)).convert("L"),
-                                'reconstructed': Image.fromarray((reconstructed_images[0].reshape(IMAGE_SIZE) * 255).astype(np.uint8)).convert("L"),
-                                'eigenface': peep_obj.get_eigenfaces(format='pillow')[0] if peep_obj.get_eigenfaces(format='pillow') else Image.new("L", IMAGE_SIZE, "gray"),
-                                'noised_eigenface': None  # Placeholder
+                                'original': resized_images[i],
+                                'reconstructed': noised_reconstructed_images[i],
+                                'eigenface': eigenfaces[0],
+                                'noised_eigenface': noised_eigenfaces[0] if noised_eigenfaces else Image.new('L', image_size)
+
                             }
 
-                            # Get and store *noised* eigenface
-                            if peep_obj.pca_object is not None:
-                                single_eigenface = peep_obj.pca_object.pca.components_[0]
-                                noise_for_single = np.random.laplace(0, peep_obj.sensitivity / epsilon, single_eigenface.shape)
-                                noised_single_eigenface = single_eigenface + noise_for_single
-                                noised_single_eigenface = np.clip(noised_single_eigenface, -1, 1)
-                                noised_single_eigenface_img = Image.fromarray(((noised_single_eigenface.reshape(IMAGE_SIZE) + 1) / 2 * 255).astype(np.uint8)).convert("L")
-                                results[epsilon][n_components_ratio]['example_images'][subject]['noised_eigenface'] = noised_single_eigenface_img
-                            else:
-                                results[epsilon][n_components_ratio]['example_images'][subject]['noised_eigenface'] = Image.new("L", IMAGE_SIZE, "gray")
+                    for i in range(len(resized_images)):
+                        original_np = np.array(resized_images[i])
+                        reconstructed_np = np.array(noised_reconstructed_images[i])
+                        mse = calculate_mse(original_np, reconstructed_np)
+                        ssim_score = ssim(original_np, reconstructed_np, data_range=255)
+                        mse_values.append(mse)
+                        ssim_values.append(ssim_score)
 
-            # --- Calculate average MSE and SSIM ---
-            if all_original_images and all_reconstructed_images:
-                all_original_images = np.array(all_original_images)
-                all_reconstructed_images = np.array(all_reconstructed_images)
-                mse_values = [np.mean((orig - recon) ** 2) for orig, recon in zip(all_original_images, all_reconstructed_images)]
-                ssim_values = [ssim(orig.reshape(IMAGE_SIZE), recon.reshape(IMAGE_SIZE), data_range=1.0)
-                              for orig, recon in zip(all_original_images, all_reconstructed_images)]
-                results[epsilon][n_components_ratio]['avg_mse'] = np.mean(mse_values) # No longer appending
+                except Exception as e:
+                    errors.append(f"Error processing subject {subject} with epsilon {epsilon}, n_components_ratio {n_components_ratio}: {e}")
+                    continue
+
+            if mse_values and ssim_values:
+                results[epsilon][n_components_ratio]['avg_mse'] = np.mean(mse_values)
                 results[epsilon][n_components_ratio]['avg_ssim'] = np.mean(ssim_values)
             else:
-                results[epsilon][n_components_ratio]['avg_mse'] = np.nan
-                results[epsilon][n_components_ratio]['avg_ssim'] = np.nan
+                results[epsilon][n_components_ratio]['avg_mse'] = 0.0
+                results[epsilon][n_components_ratio]['avg_ssim'] = 0.0
 
 
-    # --- Plotting ---
-
-    # 1. Combined MSE and SSIM vs. Epsilon (for each n_components_ratio)
+    # --- Plotting and Visualization ---
     for n_components_ratio in n_components_ratios:
         epsilon_values_plot = list(results.keys())
-        avg_mse_values = [results[e][n_components_ratio]['avg_mse'] for e in epsilon_values_plot]
-        avg_ssim_values = [results[e][n_components_ratio]['avg_ssim'] for e in epsilon_values_plot]
+        avg_mse_values = [results[epsilon][n_components_ratio]['avg_mse'] for epsilon in epsilon_values_plot]
+        avg_ssim_values = [results[epsilon][n_components_ratio]['avg_ssim'] for epsilon in epsilon_values_plot]
+
 
         fig, ax1 = plt.subplots(figsize=(10, 6))
 
@@ -160,12 +161,12 @@ def performance_test(image_folder: str, output_folder: str,
         ax2.tick_params(axis='y', labelcolor=color)
         ax2.set_ylim(0, 1)
 
-        plt.title(f"MSE and SSIM vs. Epsilon (n_components={n_components_ratio})")
+        plt.title(f"MSE and SSIM vs. Epsilon (n_components_ratio={n_components_ratio:.2f})")
         fig.tight_layout()
-        plt.savefig(os.path.join(plots_folder, f"mse_ssim_vs_epsilon_n{n_components_ratio}.png"))
-        plt.close()
+        plt.savefig(os.path.join(plots_folder, f"mse_ssim_vs_epsilon_n{n_components_ratio:.2f}.png"))
+        plt.close(fig)
 
-    # 2. Superimposed MSE vs. n_components_ratio (for all epsilons)
+  # 2. Superimposed MSE vs. n_components_ratio (for all epsilons)
     plt.figure(figsize=(10, 6))
     for epsilon in epsilon_values:
         n_components_values_plot = n_components_ratios
@@ -183,9 +184,9 @@ def performance_test(image_folder: str, output_folder: str,
     # 3. Superimposed SSIM vs. n_components_ratio (for all epsilons)
     plt.figure(figsize=(10, 6))
     for epsilon in epsilon_values:
-        n_components_values_plot = n_components_ratios
-        ssim_values = [results[epsilon][n]['avg_ssim'] for n in n_components_values_plot]
-        plt.plot(n_components_values_plot, ssim_values, marker='x', label=f'ε={epsilon}')
+      n_components_values_plot = n_components_ratios
+      ssim_values = [results[epsilon][n]['avg_ssim'] for n in n_components_values_plot]
+      plt.plot(n_components_values_plot, ssim_values, marker='x', label=f'ε={epsilon}')
 
     plt.xlabel("n_components Ratio")
     plt.ylabel("Average SSIM")
@@ -196,49 +197,51 @@ def performance_test(image_folder: str, output_folder: str,
     plt.savefig(os.path.join(plots_folder, "superimposed_ssim_vs_n_components.png"))
     plt.close()
 
-
-    # --- Combined Results Visualization (controlled by num_examples)---
-
+    # 4. Combined Results Visualization (Example Images)
     for epsilon in epsilon_values:
         for n_components_ratio in n_components_ratios:
-            # Iterate through the *keys* of the example_images dictionary
             for subject in list(results[epsilon][n_components_ratio]['example_images'].keys())[:num_examples]:
                 original_img = results[epsilon][n_components_ratio]['example_images'][subject]['original']
                 reconstructed_img = results[epsilon][n_components_ratio]['example_images'][subject]['reconstructed']
                 eigenface_img = results[epsilon][n_components_ratio]['example_images'][subject]['eigenface']
                 noised_eigenface_img = results[epsilon][n_components_ratio]['example_images'][subject]['noised_eigenface']
 
-                plt.figure(figsize=(12, 4))
-                plt.subplot(1, 4, 1)
-                plt.imshow(original_img, cmap='gray')
-                plt.title(f"Original (Subject {subject})")
-                plt.axis('off')
+                fig, axes = plt.subplots(1, 4, figsize=(16, 4))
 
-                plt.subplot(1, 4, 2)
-                plt.imshow(eigenface_img, cmap='gray')
-                plt.title(f"Eigenface")
-                plt.axis('off')
+                axes[0].imshow(original_img, cmap='gray')
+                axes[0].set_title(f"Original (Subject {subject})")
+                axes[0].axis('off')
 
-                plt.subplot(1, 4, 3)
-                plt.imshow(noised_eigenface_img, cmap='gray')
-                plt.title(f"Noised Eigen (ε={epsilon})")
-                plt.axis('off')
+                axes[1].imshow(eigenface_img, cmap='gray')
+                axes[1].set_title("Eigenface")
+                axes[1].axis('off')
 
-                plt.subplot(1, 4, 4)
-                plt.imshow(reconstructed_img, cmap='gray')
-                plt.title(f"Reconstructed (ε={epsilon}, n={n_components_ratio})")
-                plt.axis('off')
+                axes[2].imshow(noised_eigenface_img, cmap='gray')
+                axes[2].set_title(f"Noised Eigen (ε={epsilon})")
+                axes[2].axis('off')
 
-                plt.tight_layout()
-                plt.savefig(os.path.join(combined_results_folder, f"combined_subject{subject}_eps{epsilon}_n{n_components_ratio}.png"))
-                plt.close()
+                axes[3].imshow(reconstructed_img, cmap='gray')
+                axes[3].set_title(f"Reconstructed (ε={epsilon:.2f}, n={n_components_ratio:.2f})")
+                axes[3].axis('off')
+
+                fig.tight_layout()
+                plt.savefig(os.path.join(examples_folder, f"combined_subject{subject}_eps{epsilon:.2f}_n{n_components_ratio:.2f}.png"))
+                plt.close(fig)
 
 
-if __name__ == "__main__":
+    if errors:
+        print("\nErrors encountered:")
+        for error in errors:
+            print(error)
+
+    return results
+
+if __name__ == '__main__':
     IMAGE_FOLDER = "../data/database"
     OUTPUT_FOLDER = "performance_tests"
-    EPSILON_VALUES = [0.01, 0.1, 0.5, 1, 5, 9]
-    N_COMPONENTS_RATIOS = [0.5, 0.75, 1]
+    K_SAME_PIXEL_VALUES = [] # To fill
+    EPSILON_VALUES = [0.01, 0.1, 0.5, 1.0, 5.0, 9.0]
+    N_COMPONENTS_RATIOS = [0.25, 0.5, 0.75, 1.0]
     NUM_EXAMPLES = 1
 
-    performance_test(IMAGE_FOLDER, OUTPUT_FOLDER, EPSILON_VALUES, n_components_ratios=N_COMPONENTS_RATIOS, method='unbounded', unbounded_bound_type='l2', num_examples=NUM_EXAMPLES)
+    results = perf_test(IMAGE_FOLDER, OUTPUT_FOLDER, EPSILON_VALUES, N_COMPONENTS_RATIOS, NUM_EXAMPLES)
