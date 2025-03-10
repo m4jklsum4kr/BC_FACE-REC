@@ -3,7 +3,7 @@ from PIL import Image
 
 from src.config import IMAGE_SIZE
 from src.modules.eigenface import EigenfaceGenerator
-from src.modules.noiseGenerator import NoiseGenerator
+from src.modules.noise_generator import NoiseGenerator
 from src.modules.utils_image import image_numpy_to_pillow, image_pillow_to_bytes
 
 class Peep:
@@ -81,13 +81,14 @@ class Peep:
 
     def _add_laplace_noise(self):
         # Generate eigenfaces
-        eigenface_images = self.get_eigenfaces()
-        noiseGenerator = NoiseGenerator(eigenface_images, self.epsilon)
-        noiseGenerator.flatten_images()
-        noiseGenerator.normalize_images()
-        noiseGenerator.add_laplace_noise()
-        self.noised_images = noiseGenerator.get_noised_eigenfaces()
+        if self.projected_images is None:
+            raise ValueError("Images must be projected before adding noise.")
 
+        noise_generator = NoiseGenerator(self.projected_images, self.epsilon)
+        noise_generator.flatten_images()
+        noise_generator.normalize_images()
+        noise_generator.add_laplace_noise()
+        self.noised_images = noise_generator.get_noised_eigenfaces()
 
     def run(self, images_data: np.ndarray, method='bounded', unbounded_bound_type='l2'):
         self._generate_eigenfaces(images_data)

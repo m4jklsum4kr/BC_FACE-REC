@@ -20,7 +20,7 @@ class Main:
         """Loads, preprocesses images, and creates Peep objects from a folder."""
         subject_data = {}
 
-        for filename in tqdm(os.listdir(image_folder), desc="Loading and Processing from Folder"):
+        for filename in os.listdir(image_folder):
             if not filename.lower().endswith(self.image_extensions):
                 continue
 

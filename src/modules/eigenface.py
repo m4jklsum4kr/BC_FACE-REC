@@ -23,9 +23,9 @@ class EigenfaceGenerator:
 
         data = self.images
         self.original_data = data # ADD THIS LINE
-        print("Inside EigenfaceGenerator.generate()")
-        print(f"Shape of input data: {data.shape}")
-        print(f"Are all input images identical? {np.allclose(data, data[0])}")
+        # print("Inside EigenfaceGenerator.generate()")
+        # print(f"Shape of input data: {data.shape}")
+        # print(f"Are all input images identical? {np.allclose(data, data[0])}")
 
         self.pca = PCA(n_components=self.n_components)
         self.pca.fit(data)
