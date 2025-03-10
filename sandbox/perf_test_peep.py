@@ -80,7 +80,7 @@ def performance_test(image_folder: str, output_folder: str,
                 peep_obj._calculate_sensitivity(method, unbounded_bound_type)
 
                 # --- Project, then add noise ---
-                projected_images = peep_obj.projected_images
+                projected_images = peep_obj.projected_vectors
                 noise_generator = NoiseGenerator(projected_images, epsilon)
                 noise_generator.flatten_images()
                 noise_generator.normalize_images()

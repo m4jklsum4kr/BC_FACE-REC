@@ -80,7 +80,7 @@ def new_people_processing():
     df_images = pd.DataFrame({'userFaces':file_urls, "subject_number": id_sujet, "imageId":range(1, len(file_urls)+1)})
     #print(df_images)
 
-    workflow = Main().load_and_process_from_dataframe(df=df_images, target_subject=id_sujet, epsilon=6, method='bounded', unbounded_bound_type='l2').get(id_sujet)
+    workflow = Main().load_and_process_from_dataframe(df=df_images, target_subject=id_sujet, epsilon=0.01, method='bounded', unbounded_bound_type='l2').get(id_sujet)
     eigenfaces_images = workflow.get_eigenfaces('bytes')
     noised_images = workflow.get_noised_images('bytes')
 

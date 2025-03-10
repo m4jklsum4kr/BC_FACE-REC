@@ -3,7 +3,7 @@ from PIL import Image
 
 from src.config import IMAGE_SIZE
 from src.modules.eigenface import EigenfaceGenerator
-from src.modules.noise_generator import NoiseGenerator
+from src.modules.noiseGenerator import NoiseGenerator
 from src.modules.utils_image import image_numpy_to_pillow, image_pillow_to_bytes
 
 class Peep:
@@ -11,7 +11,7 @@ class Peep:
         self.resize_size = image_size
         self.epsilon = epsilon
         self.pca_object = None
-        self.projected_images = None
+        self.projected_vectors = None
         self.noised_images = None
         self.sensitivity = None
 
@@ -45,7 +45,7 @@ class Peep:
         if self.pca_object is None:
             raise ValueError("Eigenfaces must be generated before projecting images.")
 
-        self.projected_images = self.pca_object.pca.transform(images_data)
+        self.projected_vectors = self.pca_object.pca.transform(images_data)
 
 
     def _calculate_sensitivity(self, method='bounded', unbounded_bound_type='l2'):
@@ -60,13 +60,13 @@ class Peep:
         elif method == 'unbounded':
             if unbounded_bound_type == 'l2':
                 max_image_norm = np.sqrt(self.resize_size[0] * self.resize_size[1])
-                sensitivity = (2 * max_image_norm ** 2) / len(self.projected_images)
+                sensitivity = (2 * max_image_norm ** 2) / len(self.projected_vectors)
 
             elif unbounded_bound_type == 'empirical':
                 max_diff = 0
-                for i in range(len(self.projected_images)):
-                    for j in range(i + 1, len(self.projected_images)):
-                        diff = np.linalg.norm(self.projected_images[i] - self.projected_images[j])
+                for i in range(len(self.projected_vectors)):
+                    for j in range(i + 1, len(self.projected_vectors)):
+                        diff = np.linalg.norm(self.projected_vectors[i] - self.projected_vectors[j])
                         max_diff = max(max_diff, diff)
                 sensitivity = max_diff
             else:
@@ -81,10 +81,10 @@ class Peep:
 
     def _add_laplace_noise(self):
         # Generate eigenfaces
-        if self.projected_images is None:
+        if self.projected_vectors is None:
             raise ValueError("Images must be projected before adding noise.")
 
-        noise_generator = NoiseGenerator(self.projected_images, self.epsilon)
+        noise_generator = NoiseGenerator(self.projected_vectors, self.epsilon)
         noise_generator.flatten_images()
         noise_generator.normalize_images()
         noise_generator.add_laplace_noise()
@@ -130,20 +130,20 @@ class Peep:
         return mean_face_image
 
     def get_projected_data(self):
-        return self.projected_images
+        return self.projected_vectors
 
     def get_noised_images(self, format:['numpy', 'pillow', 'bytes']= 'numpy'):
         if self.noised_images is None:
             return None
         if format == 'numpy':
             return self.noised_images
-        #pillow_images = []
-        #if self.pca_object:
-        #    for noisy_projection in self.noised_images:
-        #        reconstructed_noisy = self.pca_object.pca.inverse_transform(noisy_projection.reshape(1, -1))
-        #        img = image_numpy_to_pillow(reconstructed_noisy.flatten(), self.resize_size)
-        #        pillow_images.append(img)
-        pil_images = [image_numpy_to_pillow(img, self.resize_size) for img in self.noised_images]
+        pil_images = []
+        if self.pca_object:
+            for noisy_projection in self.noised_images:
+                reconstructed_noisy = self.pca_object.pca.inverse_transform(noisy_projection.reshape(1, -1))
+                img = image_numpy_to_pillow(reconstructed_noisy.flatten(), self.resize_size)
+                pil_images.append(img)
+        #pil_images = [image_numpy_to_pillow(img, self.resize_size) for img in self.noised_images]
         if format == 'pillow':
             return pil_images
         elif format == 'bytes':
