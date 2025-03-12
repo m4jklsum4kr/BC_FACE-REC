@@ -8,26 +8,61 @@ import operator
 from PIL import Image, ImageDraw
 from main import Main
 
-def combine_pill_images_lists(image_lists, delimiter_color=(0, 0, 0), delimiter_width=10):
-    """Combine a list of lists of PIL.Image.Images into a single image."""
-    widths, heights = [], []
-    for images in image_lists:
-        w, h = zip(*(img.size for img in images))
-        widths.append(sum(w) + (len(images) - 1) * delimiter_width)
-        heights.append(max(h))
-    total_width = max(widths)
-    total_height = sum(heights) + (len(image_lists) - 1) * delimiter_width
-    combined_image = Image.new("RGB", (total_width, total_height), "white")
-    draw = ImageDraw.Draw(combined_image)
-    y_offset = 0
-    for images in image_lists:
+from PIL import Image, ImageDraw
+
+from PIL import Image, ImageDraw
+
+
+def combine_pill_images_lists(image_lists, inline_layout=True, delimiter_color=(0, 0, 0), delimiter_width=10):
+    """
+    Combine a list of lists of PIL.Image.Images into a single image.
+
+    Parameters:
+    - image_lists: List of lists of images.
+    - layout: Boolean indicating layout direction (True for horizontal, False for vertical).
+    - delimiter_color: RGB color of the delimiter (default is black).
+    - delimiter_width: Width of the delimiter (default is 10 pixels).
+    """
+    if inline_layout:  # Horizontal layout
+        widths, heights = [], []
+        for images in image_lists:
+            w, h = zip(*(img.size for img in images))
+            widths.append(sum(w) + (len(images) - 1) * delimiter_width)
+            heights.append(max(h))
+        total_width = max(widths)
+        total_height = sum(heights) + (len(image_lists) - 1) * delimiter_width
+
+        combined_image = Image.new("RGB", (total_width, total_height), "white")
+        y_offset = 0
+        for images in image_lists:
+            x_offset = 0
+            max_height = 0
+            for img in images:
+                combined_image.paste(img, (x_offset, y_offset))
+                x_offset += img.width + delimiter_width
+                max_height = max(max_height, img.height)
+            y_offset += max_height + delimiter_width
+
+    else:  # Vertical layout
+        widths, heights = [], []
+        for images in image_lists:
+            w, h = zip(*(img.size for img in images))
+            widths.append(max(w))
+            heights.append(sum(h) + (len(images) - 1) * delimiter_width)
+        total_width = sum(widths) + (len(image_lists) - 1) * delimiter_width
+        total_height = max(heights)
+
+        combined_image = Image.new("RGB", (total_width, total_height), "white")
         x_offset = 0
-        max_height = 0
-        for img in images:
-            combined_image.paste(img, (x_offset, y_offset))
-            x_offset += img.width + delimiter_width
-            max_height = max(max_height, img.height)
-        y_offset += max_height + delimiter_width
+        for images in image_lists:
+            y_offset = 0
+            max_width = 0
+            for img in images:
+                combined_image.paste(img, (x_offset, y_offset))
+                y_offset += img.height + delimiter_width
+                max_width = max(max_width, img.width)
+            x_offset += max_width + delimiter_width
+
     return combined_image
 
 
@@ -47,7 +82,7 @@ def import_subject_images(id):
 
 def generate_noise_on_eigenface_images(subject=1, epsilon=5,
                    show_img:(bool,int) = False,
-                   export_img = False, export_img_folder = "../../sandbox/noised_image_test",
+                   export_img = False, export_img_folder = "../../sandbox/noised_image_test", inline_layout=True
                    ):
     """Workflow to generate noised images."""
     # Import images
@@ -105,7 +140,7 @@ def generate_noise_on_eigenface_images(subject=1, epsilon=5,
         pil_noised_images = [image_numpy_to_pillow(img, img_shape) for img in noised_image_list]
         # Create the united image
         image_lists = [pil_images_source, pil_eigenface_images, pil_normalised_images, pil_noised_images]
-        result = combine_pill_images_lists(image_lists, delimiter_color=(100, 100, 100), delimiter_width=10)
+        result = combine_pill_images_lists(image_lists, delimiter_color=(100, 100, 100), delimiter_width=10, inline_layout=inline_layout)
         # save
         result.save(f"{export_img_folder}/subject_{subject}-noised_image_with_epsilon_{epsilon}.png")
 
@@ -144,9 +179,9 @@ def generate_noise_on_projected_data(subject=1, epsilon=5):
 
 
 
-def wf_pil_image(subject=1):
+def wf_pil_image(subject=1, inline_layout=True):
     for e in np.arange(0.5, 9.5, 0.25):
-        generate_noise_on_eigenface_images(subject=subject, epsilon=e, show_img=False, export_img=True)
+        generate_noise_on_eigenface_images(subject=subject, epsilon=e, show_img=False, export_img=True, inline_layout=inline_layout)
 
 
 def wf_pil_vector():
@@ -166,11 +201,13 @@ def wf_pil_vector():
 
 if __name__ == '__main__':
 
-    [wf_pil_image(id) for id in range(1, 16)]
+    #[wf_pil_image(id) for id in range(1, 16)]
     #wf_pil_vector()
     #noised_vectors, peep = generate_noise_on_projected_data(subject=1, epsilon=4)
 
     #noised_images, peep = generate_noise_on_eigenface_images(subject=1, epsilon=4, show_img=False, export_img=True)
+    generate_noise_on_eigenface_images(subject=10, epsilon=3.14, show_img=False, export_img=True,
+                                       inline_layout=False)
 
     #noiseImg = noised_images[3]
     #pca = peep.pca_objects[15].pca
