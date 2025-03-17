@@ -13,8 +13,6 @@ from modules.utils_image import pillow_image_to_bytes, filestorage_image_to_pil
 
 class GUIController:
 
-    temp_folder = r"..\..\data\temp_gui_controller"
-
     def __init__(self, images: list[FileStorage]):
         # Images Attributs
         self._images_source: list[PIL.Image.Image] = [PIL.Image.new("RGB", (1, 1), (0, 0, 0))]
@@ -27,18 +25,8 @@ class GUIController:
         self._peep: Peep = Peep(image_size=self._image_size)
         self.optimum_components: int = -1
         # Methods
-        os.makedirs(self.temp_folder, exist_ok=True)
-        self.cleanup()
         self._images_source = filestorage_image_to_pil(images)
-        self._save_images(self._images_source, "images_source")
 
-    def cleanup(self):
-        for element in os.listdir(self.temp_folder):
-            object_path = self._path(element)
-            if os.path.isdir(object_path):
-                shutil.rmtree(object_path)
-            else:
-                os.remove(object_path)
 
     def s1_apply_k_same_pixel(self):
         self._images_pixelated = self._images_source
@@ -60,18 +48,6 @@ class GUIController:
         self._peep.calculate_sensitivity()
         self._peep.add_laplace_noise()
         self._images_noised = self._peep.get_noised_images('pillow')
-
-    #-----------------------------------------------------------------------------------#
-    #------------------------------# INTERNAL METHODS #---------------------------------#
-    #-----------------------------------------------------------------------------------#
-
-    def _path(self, folder_name: str) -> str:
-        return os.path.join(self.temp_folder, folder_name)
-
-    def _save_images(self, images: list[PIL.Image.Image], folder_name:str):
-        os.makedirs(self._path(folder_name), exist_ok=True)
-        for i, image in enumerate(images):
-            image.save(f"{self._path(folder_name)}\\image-{i}.png")
 
 
 
