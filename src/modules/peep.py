@@ -4,7 +4,7 @@ from PIL import Image
 from src.config import IMAGE_SIZE
 from src.modules.eigenface import EigenfaceGenerator
 from src.modules.noiseGenerator import NoiseGenerator
-from src.modules.utils_image import image_numpy_to_pillow, image_pillow_to_bytes
+from src.modules.utils_image import numpy_image_to_pillow, pillow_image_to_bytes
 
 class Peep:
     def __init__(self, epsilon: int = 9, image_size=IMAGE_SIZE):
@@ -15,7 +15,7 @@ class Peep:
         self.noised_images = None
         self.sensitivity = None
 
-    def _generate_eigenfaces(self, images_data: np.ndarray, pt_n_components=None, perf_test=False):
+    def generate_eigenfaces(self, images_data: np.ndarray, pt_n_components=None, perf_test=False):
         """Generates eigenfaces from preprocessed image data."""
 
         if not isinstance(images_data, np.ndarray):
@@ -25,8 +25,9 @@ class Peep:
 
         num_images = images_data.shape[0]
         self.max_components = num_images
+        optimum_components = min(num_images - 1, self.max_components)
         if not perf_test:
-            n_components = min(num_images - 1, self.max_components)
+            n_components = optimum_components
         else:
             n_components = pt_n_components
 
@@ -38,9 +39,10 @@ class Peep:
             self.pca_object.generate()
         except Exception as e:
             raise RuntimeError(f"Error generating eigenfaces: {e}")
+        return optimum_components
 
 
-    def _project_images(self, images_data: np.ndarray):
+    def project_images(self, images_data: np.ndarray):
         """Projects the images onto the eigenface subspace."""
         if self.pca_object is None:
             raise ValueError("Eigenfaces must be generated before projecting images.")
@@ -48,7 +50,7 @@ class Peep:
         self.projected_images = self.pca_object.pca.transform(images_data)
 
 
-    def _calculate_sensitivity(self, method='bounded', unbounded_bound_type='l2'):
+    def calculate_sensitivity(self, method='bounded', unbounded_bound_type='l2'):
         """Calculates the sensitivity of the PCA transformation."""
         if self.pca_object is None:
             raise ValueError("Eigenfaces must be generated before calculating sensitivity.")
@@ -79,7 +81,7 @@ class Peep:
     def set_epsilon(self, epsilon):
         self.epsilon = epsilon
 
-    def _add_laplace_noise(self):
+    def add_laplace_noise(self):
         # Generate eigenfaces
         eigenface_images = self.get_eigenfaces()
         noiseGenerator = NoiseGenerator(eigenface_images, self.epsilon)
@@ -90,10 +92,10 @@ class Peep:
 
 
     def run(self, images_data: np.ndarray, method='bounded', unbounded_bound_type='l2'):
-        self._generate_eigenfaces(images_data)
-        self._project_images(images_data)
-        self._calculate_sensitivity(method, unbounded_bound_type)
-        self._add_laplace_noise()
+        self.generate_eigenfaces(images_data)
+        self.project_images(images_data)
+        self.calculate_sensitivity(method, unbounded_bound_type)
+        self.add_laplace_noise()
         return True
 
     '''Utility functions'''
@@ -103,11 +105,11 @@ class Peep:
         eigenfaces = self.pca_object.get_eigenfaces()
         if format == 'numpy':
             return eigenfaces
-        pil_eigenfaces = [image_numpy_to_pillow(img) for img in eigenfaces]
+        pil_eigenfaces = numpy_image_to_pillow(eigenfaces)
         if format == 'pillow':
             return pil_eigenfaces
         elif format == 'bytes':
-            return [image_pillow_to_bytes(img) for img in pil_eigenfaces]
+            return pillow_image_to_bytes(pil_eigenfaces)
         raise ValueError("'format' must be numpy, pillow or bytes")
 
 
@@ -142,9 +144,9 @@ class Peep:
         #        reconstructed_noisy = self.pca_object.pca.inverse_transform(noisy_projection.reshape(1, -1))
         #        img = image_numpy_to_pillow(reconstructed_noisy.flatten(), self.resize_size)
         #        pillow_images.append(img)
-        pil_images = [image_numpy_to_pillow(img, self.resize_size) for img in self.noised_images]
+        pil_images = numpy_image_to_pillow(self.noised_images, self.resize_size, True)
         if format == 'pillow':
             return pil_images
         elif format == 'bytes':
-            return [image_pillow_to_bytes(img) for img in pil_images]
+            return pillow_image_to_bytes(pil_images)
         raise ValueError("'format' must be numpy, pillow or bytes")

@@ -19,10 +19,11 @@ The aim of the project is the development a prototype that take a photo and matc
 # Usefully commands
 # $ pip freeze > requirements.txt; poetry init
 # ---------------------------------------------------------------------------
-from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory
+from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory, session
 from config import *
 
 import modules.utils as utils
+from modules.gui_controller import GUIController
 from modules.peep import Peep
 from modules.main import Main
 
@@ -65,26 +66,20 @@ def new_people_processing():
         print("No file part")
         error = "No file part"
         return  render_template('new_people.html', error=error)
-
     files = request.files.getlist('fileInput')
-    #print(len(request.form), request.form)
-    #print(len(files), type(files[0]), files)
 
-    file_urls = []
-    for file in files:
-        pillow_image = Image.open(io.BytesIO(file.read()))
-        file_urls.append(pillow_image)
-    #print(file_urls)
+    c = GUIController(files)
+    c.s1_apply_k_same_pixel()
+    c.s2_resize_images((100, 100))
+    c.s3_generate_pca_components()
+    c.s4_apply_differential_privacy(5)
 
-    id_sujet = 16
-    df_images = pd.DataFrame({'userFaces':file_urls, "subject_number": id_sujet, "imageId":range(1, len(file_urls)+1)})
-    #print(df_images)
+    #session['GUIController'] = c # Save session object
+    #c = session.get('my_object', None)  # Retrieve session object
 
-    workflow = Main().load_and_process_from_dataframe(df=df_images, target_subject=id_sujet, epsilon=6, method='bounded', unbounded_bound_type='l2').get(id_sujet)
-    eigenfaces_images = workflow.get_eigenfaces('bytes')
-    noised_images = workflow.get_noised_images('bytes')
 
-    return render_template("result.html", eigenfaces_list=eigenfaces_images+noised_images)
+    renderer = c.get_image_source() + c.get_image_eigenface() + c.get_image_noised()
+    return render_template("result.html", eigenfaces_list=renderer)
 
 # ---------------------------------------------------------------------------
 # ------------------------- BACK FUNCTIONS ----------------------------------
@@ -94,17 +89,7 @@ def new_people_processing():
 def check_photo():
     return jsonify({'result': utils.random_bool()})
 
-#@app.route('/api/db_search_all', methods=['POST'])
-#def db_search_all():
-    #return jsonify({'result': Config.db.select_all()})
 
-#@app.route('/api/db_search_image', methods=['POST'])
-#def db_search_image(id_subject, id_image):
-    #return jsonify({'result': Config.db.select_image(id_subject, id_image)})
-
-#@app.route('/static/uploads/<filename>')
-#def uploaded_file(filename):
-    #return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 # ---------------------------------------------------------------------------
 # ------------------------- MAIN --------------------------------------------
 # ---------------------------------------------------------------------------

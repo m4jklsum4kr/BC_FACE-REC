@@ -56,7 +56,7 @@ class Main:
 
 
     def load_and_process_from_dataframe(self, df: pd.DataFrame, target_subject: int = None,
-                                     epsilon: int = 9, method='bounded', unbounded_bound_type='l2'):
+                                     epsilon: float = 9, method='bounded', unbounded_bound_type='l2'):
         """Loads, preprocesses images, and creates Peep objects from a Pandas DataFrame."""
         if 'userFaces' not in df.columns or 'imageId' not in df.columns or 'subject_number' not in df.columns:
             raise ValueError("DataFrame must contain 'userFaces' (PIL Images) and 'imageId' columns.")
