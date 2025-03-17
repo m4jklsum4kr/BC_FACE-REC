@@ -26,7 +26,7 @@ class GUIController:
         self._images_eigenface: list[np.ndarray] = [np.array([])]
         self._images_noised: list[np.ndarray] = [np.array([])]
         # Workflow Attributs
-        self._step = 0
+        self._step = 1
         self._image_size: (int, int) = IMAGE_SIZE
         self._peep: Peep = Peep(image_size=self._image_size)
         self._optimum_components: int = -1
