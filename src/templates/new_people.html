@@ -1,59 +1,101 @@
 {% extends 'tpl/template.html' %}
 {% block title %}New People{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="{{url_for('static', filename='css/new_people.css')}}">
+    {% assets "scss_new_people" %}
+        <link rel=stylesheet type=text/css href="{{ ASSET_URL }}">
+    {% endassets %}
     <script src="{{ url_for('static', filename='js/new_people.js') }}"></script>
 {% endblock %}
 
 {% block header %}{% include 'tpl/header.html' %}{% endblock %}
 
 {% block body %}
-    <div class="main-block">
-        <h1 class="main-block">🕵️‍♂️ Privacy-preserving face recognition App 🕵️‍♀️</h1>
-        <hr>
-
-        <form action="{{ url_for('new_people_processing') }}" method="post" enctype="multipart/form-data">
 
 
-            <!--<div class="toggle-container">
-                <label for="toggle">Incremental</label>
-                <input class="toggle" id="toggle" name="toggle" type="checkbox" style="--s:20px">
-                <label for="toggle">One shot</label>
-            </div>-->
 
-            <div class="upload-container">
-                <input type="file" id="fileInput" name="fileInput" accept="image/*" style="display: none;" multiple>
-                <label for="fileInput" class="upload-label">Choose photos</label>
-            </div>
-
-
-            <div class="container">
-                <div class="container-left">
-                    <div id="imgVisual" class="preview-container"></div>
-                </div>
-                <div class="container-right">
-                    <label for="imgWidth">Image Width:</label>
-                    <input type="number" id="imgWidth" name="imgWidth" value="47" min="1" max="500" step="1">
-                    <br><br><br>
-                    <label for="imgHeight">Image Height:</label>
-                    <input type="number" id="imgHeight" name="imgHeight" value="62" min="1" max="500" step="1">
-                    <br><br><br>
-                    <label for="privacyBudget">Privacy Budget:</label>
-                    <input type="number" id="privacyBudget" name="privacyBudget" value="7" min="0" max="20" step="0.001">
-                </div>
-            </div>
-
-
-            <button type="submit" class="button-run">Submit</button>
-
-        </form>
-
-        {% if error %}
-                <p style="color: red;">{{ error }}</p>
-        {% endif %}
-
-
+    <div class="arrow-steps">
+        <div class="step" id="step-1"> <span>Import photos</span></div>
+        <div class="step" id="step-2"> <span>Apply K-same pixel</span></div>
+        <div class="step" id="step-3"> <span>Resize images</span></div>
+        <div class="step" id="step-4"> <span>Generate PCA</span></div>
+        <div class="step" id="step-5"> <span>Add noise</span></div>
+        <div class="step" id="step-6"> <span>ML tests</span></div>
+        <div class="step" id="step-7"> <span>Save</span></div>
     </div>
+
+
+    <p id="error"></p>
+
+    <!-- Import photos -->
+    <div class="panel hidden center" id="panel-1">
+        <div class="upload-button">
+            <input type="file" id="fileInput" name="fileInput" accept="image/*" style="display: none;" multiple>
+            <label for="fileInput" class="upload-label">Choose photos</label>
+        </div>
+        <div id="upload-container"></div>
+        <button type="button" class="button" onclick="call_process('0')">Next</button>
+    </div>
+    <!-- Apply K-same pixel -->
+    <div class="panel hidden" id="panel-2">
+        Panel 2
+        <br>
+        parameters to define
+        <button type="button" class="button" onclick="call_process('1')">Run</button>
+        <button type="button" class="button" onclick="call_process('1')">Next</button>
+        <div id="image-container-1" class="center"></div>
+    </div>
+    <!-- Resize images -->
+    <div class="panel hidden" id="panel-3">
+        Panel 3
+        <br>
+        parameters (width, height)
+        <button type="button" class="button" onclick="call_process('2')">Run</button>
+        <button type="button" class="button" onclick="call_process('2')">Next</button>
+        <div id="image-container-2" class="center"></div>
+    </div>
+    <!-- Generate PCA -->
+    <div class="panel hidden" id="panel-4">
+        Panel 4
+        <br>
+        parameters component_number
+        <button type="button" class="button" onclick="call_process('3')">Run</button>
+        <button type="button" class="button" onclick="call_process('3')">Next</button>
+        <div id="image-container-3" class="center"></div>
+    </div>
+    <!-- Add noise -->
+    <div class="panel hidden" id="panel-5">
+        Panel 5
+        <br>
+        parameters epsilon
+        <button type="button" class="button" onclick="call_process('4')">Run</button>
+        <button type="button" class="button" onclick="call_process('4')">Next</button>
+        <div id="image-container-4" class="center"></div>
+    </div>
+    <!-- ML tests -->
+    <div class="panel hidden" id="panel-6">Panel 6</div>
+    <!-- Save -->
+    <div class="panel hidden" id="panel-7">Panel 7</div>
+
+
+    <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+    <hr>
+    <form action="{{ url_for('new_people_processing') }}" method="post" enctype="multipart/form-data">
+        <div class="upload-container">
+            <div class="container-right">
+                <label for="imgWidth">Image Width:</label>
+                <input type="number" id="imgWidth" name="imgWidth" value="47" min="1" max="500" step="1">
+                <br><br><br>
+                <label for="imgHeight">Image Height:</label>
+                <input type="number" id="imgHeight" name="imgHeight" value="62" min="1" max="500" step="1">
+                <br><br><br>
+                <label for="privacyBudget">Privacy Budget:</label>
+                <input type="number" id="privacyBudget" name="privacyBudget" value="7" min="0" max="20" step="0.001">
+            </div>
+        </div>
+        <button type="button" class="button">Next</button>
+    </form>
+
+
 {% endblock %}
 
 {% block footer %}{% include 'tpl/footer.html' %}{% endblock %}

@@ -11,6 +11,9 @@ This project will explore the intersection of Machine Learning (ML) and data pri
 The student will investigate data anonymization techniques, such as differential privacy and k-anonymity, to enhance the privacy of ML models for facial recognition.
 The aim of the project is the development a prototype that take a photo and match it with the one in the anonymized database.
 """
+import json
+
+import PIL.Image
 # ---------------------------------------------------------------------------
 # Usefully links:
 # * https://www.geeksforgeeks.org/single-page-portfolio-using-flask/
@@ -20,24 +23,26 @@ The aim of the project is the development a prototype that take a photo and matc
 # $ pip freeze > requirements.txt; poetry init
 # ---------------------------------------------------------------------------
 from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory, session
+from flask_assets import Environment, Bundle
 from config import *
 
-import modules.utils as utils
 from modules.gui_controller import GUIController
-from modules.peep import Peep
-from modules.main import Main
+from os import listdir
 
-import os
-from PIL import Image
-import io
-import pandas as pd
-import base64
-
+from modules.utils_image import numpy_image_to_pillow
 
 app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = b'\x1f\x0e\x0c\xa6\xdbt\x01S\xa0$r\xf8$\xb4\xe3\x8a\xcf\xe0\\\x00M0H\x01'
-#app.config['UPLOAD_FOLDER'] = os.path.join('src', 'static', 'uploads')
+# Configure SCSS bundle
+assets = Environment(app)
+assets.url = app.static_url_path
+for filename in listdir(f"src/{assets.url}/css"):
+    if filename.endswith('.scss'):
+        name = filename[:-5]
+        scss = Bundle(f"css/{filename}", filters='libsass', output=f'css/{name}.css')
+        assets.register(f"scss_{name}", scss)
+
 
 
 # ---------------------------------------------------------------------------
@@ -62,32 +67,56 @@ def show_database():
 
 @app.route("/new_people", methods=['POST'])
 def new_people_processing():
-    if not request.files.getlist('fileInput'):
-        print("No file part")
-        error = "No file part"
-        return  render_template('new_people.html', error=error)
-    files = request.files.getlist('fileInput')
+    step = request.form.get('step')
+    if not step:
+        return jsonify({'error': 'Step parameter is missing'}), 400
+    # Initialisation of the Controller
+    if step == '0':
+        # Get user images
+        files = request.files.getlist('fileInput')
+        if not files:
+            return jsonify({'error': 'No file part in the request'}), 400
+        # Create new Controller:
+        c = GUIController(files)
+        c.save_to_file()
+        return jsonify({'step':step, 'result': 'OK'})
+    # Retrieve controller
+    ctrl = GUIController.load_from_file()
+    if not ctrl:
+        return jsonify({'step':step, 'error': 'No controller initialized'}), 400
+    # Do the requested action
+    try: step = int(step)
+    except: return jsonify({'step': step, 'error': 'step is not an integer'}), 400
+    imgs = []
+    if ctrl.can_run_step(int(step)):
+        match step:
+            case 1:
+                ctrl.s1_apply_k_same_pixel()
+                imgs = ctrl.get_image_pixelated("bytes")
+            case 2:
+                ctrl.s2_resize_images((100, 100))
+                imgs = ctrl.get_image_resized("bytes")
+            case 3:
+                ctrl.s3_generate_pca_components()
+                imgs = ctrl.get_image_eigenface("bytes")
+            case 4:
+                ctrl.s4_apply_differential_privacy(5)
+                imgs = ctrl.get_image_noised("bytes")
+    else:
+         return jsonify({'step': step, 'error': "Can't run this step"}), 400
 
-    c = GUIController(files)
-    c.s1_apply_k_same_pixel()
-    c.s2_resize_images((100, 100))
-    c.s3_generate_pca_components()
-    c.s4_apply_differential_privacy(5)
 
-    #session['GUIController'] = c # Save session object
-    #c = session.get('my_object', None)  # Retrieve session object
+    # Save new modifications of the Controller
+    ctrl.save_to_file()
+    # Return good execution message
+    return jsonify({'step':step, 'result': 'end', 'images':imgs}), 200
 
-
-    renderer = c.get_image_source() + c.get_image_eigenface() + c.get_image_noised()
-    return render_template("result.html", eigenfaces_list=renderer)
 
 # ---------------------------------------------------------------------------
 # ------------------------- BACK FUNCTIONS ----------------------------------
 # ---------------------------------------------------------------------------
 
-@app.route('/api/check_photo', methods=['POST'])
-def check_photo():
-    return jsonify({'result': utils.random_bool()})
+
 
 
 # ---------------------------------------------------------------------------

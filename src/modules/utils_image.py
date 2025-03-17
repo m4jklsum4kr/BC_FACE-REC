@@ -109,6 +109,14 @@ def filestorage_image_to_pil(element: FileStorage|list[FileStorage]) -> PIL.Imag
         return Image.open(io.BytesIO(element.read()))
 
 
+def filestorage_image_to_numpy(element: FileStorage | list[FileStorage]) -> np.ndarray | list[np.ndarray]:
+    """Converts a FileStorage Image or a list of FileStorage Image to numpy array(s) with proper color channels."""
+    if element is None:
+        raise ValueError("no element for filestorage_image_to_numpy()")
+    if isinstance(element, list):
+        return [np.array(Image.open(io.BytesIO(image.read())).convert('RGB')) for image in element]
+    else:
+        return np.array(Image.open(io.BytesIO(element.read())).convert('RGB'))
 
 def pillow_image_to_bytes(element: PIL.Image.Image|list[PIL.Image.Image]) -> str|list[str]:
     """Converts a PIL image or a list of PIL image to a bytes string image(s)."""
@@ -126,11 +134,12 @@ def pillow_image_to_bytes(element: PIL.Image.Image|list[PIL.Image.Image]) -> str
         return convert(element)
 
 
-
-def numpy_image_to_pillow(element:np.ndarray|list[np.ndarray], resized_size:(int, int)=None, list_mode:bool=False) -> PIL.Image.Image|list[PIL.Image.Image]:
+def numpy_image_to_pillow(element: np.ndarray | list[np.ndarray], resized_size: (int, int) = None,
+                          list_mode: bool = False) -> Image.Image | list[Image.Image]:
     """Converts a NumPy array or a list of NumPy array to a PIL image(s)."""
     if element is None:
         raise ValueError("no element for numpy_image_to_pillow()")
+
     def convert(image):
         if image is None or not isinstance(image, np.ndarray):
             raise ValueError("'image' must be a valid NumPy array.")
@@ -138,7 +147,18 @@ def numpy_image_to_pillow(element:np.ndarray|list[np.ndarray], resized_size:(int
             if resized_size is None:
                 raise ValueError("'resized_size' must be provided because the image is one-dimensional.")
             image = image.reshape(resized_size)
-        return Image.fromarray((image * 255).astype(np.uint8))
+
+        # Assurez-vous que les valeurs sont dans la plage correcte
+        if image.dtype != np.uint8:
+            image = (image * 255).astype(np.uint8)
+
+        # Gérez les canaux de couleur
+        if image.ndim == 2:
+            return Image.fromarray(image, mode='L')  # Image en niveaux de gris
+        elif image.ndim == 3 and image.shape[2] == 3:
+            return Image.fromarray(image, mode='RGB')  # Image en couleur
+        else:
+            raise ValueError("Unsupported image shape: {}".format(image.shape))
 
     if isinstance(element, list) or list_mode:
         return [convert(image) for image in element]
@@ -146,7 +166,7 @@ def numpy_image_to_pillow(element:np.ndarray|list[np.ndarray], resized_size:(int
         return convert(element)
 
 
-
+# TO DELETE
 def image_numpy_to_pillow(image, resized_size=None):
     """Converts a NumPy array to a PIL Image."""
     if image is None or type(image) != np.ndarray:
@@ -156,3 +176,5 @@ def image_numpy_to_pillow(image, resized_size=None):
             raise ValueError("'resized_size' must be provided because the image is one-dimensional.")
         image = image.reshape(resized_size)
     return Image.fromarray((image * 255).astype(np.uint8))
+
+
