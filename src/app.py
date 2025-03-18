@@ -11,9 +11,6 @@ This project will explore the intersection of Machine Learning (ML) and data pri
 The student will investigate data anonymization techniques, such as differential privacy and k-anonymity, to enhance the privacy of ML models for facial recognition.
 The aim of the project is the development a prototype that take a photo and match it with the one in the anonymized database.
 """
-import json
-
-import PIL.Image
 # ---------------------------------------------------------------------------
 # Usefully links:
 # * https://www.geeksforgeeks.org/single-page-portfolio-using-flask/
@@ -25,11 +22,11 @@ import PIL.Image
 from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory, session
 from flask_assets import Environment, Bundle
 from config import *
+from modules import utils
 
 from modules.gui_controller import GUIController
 from os import listdir
 
-from modules.utils_image import numpy_image_to_pillow
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -67,11 +64,16 @@ def show_database():
 
 @app.route("/new_people", methods=['POST'])
 def new_people_processing():
+    print(request.form)
+    print(request.files)
+    # Check step value
     step = request.form.get('step')
     if not step:
         return jsonify({'error': 'Step parameter is missing'}), 400
+    try: step = int(step)
+    except: return jsonify({'step': step, 'error': 'step is not an integer'}), 400
     # Initialisation of the Controller
-    if step == '0':
+    if step == 0:
         # Get user images
         files = request.files.getlist('fileInput')
         if not files:
@@ -85,8 +87,6 @@ def new_people_processing():
     if not ctrl:
         return jsonify({'step':step, 'error': 'No controller initialized'}), 400
     # Do the requested action
-    try: step = int(step)
-    except: return jsonify({'step': step, 'error': 'step is not an integer'}), 400
     imgs = []
     if ctrl.can_run_step(int(step)):
         match step:
@@ -94,13 +94,39 @@ def new_people_processing():
                 ctrl.s1_apply_k_same_pixel()
                 imgs = ctrl.get_image_pixelated("bytes")
             case 2:
-                ctrl.s2_resize_images((100, 100))
+                # Check width value
+                width = request.form.get('width')
+                if not width: return jsonify({'error': 'width parameter is missing'}), 400
+                try: width = int(width)
+                except: return jsonify({'step': step, 'error': 'width is not a int'}), 400
+                # Check height value
+                height = request.form.get('height')
+                if not height: return jsonify({'error': 'height parameter is missing'}), 400
+                try: height = int(height)
+                except: return jsonify({'step': step, 'error': 'height is not a int'}), 400
+                # Apply the process
+                ctrl.s2_resize_images((width, height))
                 imgs = ctrl.get_image_resized("bytes")
             case 3:
-                ctrl.s3_generate_pca_components()
+                # Check pca_components value
+                pca_components = request.form.get('pca_components')
+                if not pca_components: return jsonify({'error': 'pca_components parameter is missing'}), 400
+                try: pca_components = int(pca_components)
+                except: return jsonify({'step': step, 'error': 'pca_components is not a int'}), 400
+                max_pca = ctrl.get_image_number()
+                if pca_components > max_pca:
+                    return jsonify({'step': step, 'error': f'pca_components should be between 0 and {max_pca}'}), 400
+                # Apply the process
+                ctrl.s3_generate_pca_components(pca_components)
                 imgs = ctrl.get_image_eigenface("bytes")
             case 4:
-                ctrl.s4_apply_differential_privacy(5)
+                # Check epsilon value
+                epsilon = request.form.get('epsilon')
+                if not epsilon: return jsonify({'error': 'epsilon parameter is missing'}), 400
+                try: epsilon = float(epsilon)
+                except: return jsonify({'step': step, 'error': 'epsilon is not a float'}), 400
+                # Apply the process
+                ctrl.s4_apply_differential_privacy(epsilon)
                 imgs = ctrl.get_image_noised("bytes")
     else:
          return jsonify({'step': step, 'error': "Can't run this step"}), 400
@@ -116,6 +142,9 @@ def new_people_processing():
 # ------------------------- BACK FUNCTIONS ----------------------------------
 # ---------------------------------------------------------------------------
 
+@app.route('/api/check_photo', methods=['POST'])
+def check_photo():
+    return jsonify({'result': utils.random_bool()})
 
 
 

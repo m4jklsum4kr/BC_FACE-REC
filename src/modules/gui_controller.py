@@ -100,7 +100,8 @@ class GUIController:
     def get_image_noised(self, format:['ndarray', 'PIL', 'bytes']= 'bytes'):
         return self._get_image(self._images_noised, format)
 
-
+    def get_image_number(self):
+        return len(self._images_source)
     #-----------------------------------------------------------------------------------#
     #------------------------------------# SESSION #------------------------------------#
     #-----------------------------------------------------------------------------------#
