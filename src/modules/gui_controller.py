@@ -122,3 +122,8 @@ class GUIController:
         except Exception as e:
             raise e
 
+    @classmethod
+    def delete_temp_file(cls):
+        if os.path.exists(GUIController.path):
+            os.remove(GUIController.path)
+

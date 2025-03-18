@@ -55,6 +55,7 @@ def search_people():
 
 @app.route("/new_people")
 def new_people():
+    GUIController.delete_temp_file()
     return render_template("new_people.html")
 
 
