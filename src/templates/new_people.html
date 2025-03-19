@@ -36,9 +36,9 @@
     </div>
     <!-- Apply K-same pixel -->
     <div class="panel hidden center" id="panel-2">
-        Panel 2
+        Part not implemented yet. No effect here on the process.
         <br>
-        parameters to define
+        Parameters to define
         <br>
         <button type="button" class="button" onclick="step_1_same_pixel()">Run</button>
         <button type="button" class="button" onclick="step_1_same_pixel(true)">Next</button>
@@ -80,9 +80,21 @@
         <div id="image-container-4" class="center"></div>
     </div>
     <!-- ML tests -->
-    <div class="panel hidden center" id="panel-6">Panel 6</div>
+    <div class="panel hidden center" id="panel-6">
+        No ML tests.
+        <br>
+        You can skip this step.
+        <br>
+        <button type="button" class="button" onclick="step_5_ML()">Next</button>
+    </div>
     <!-- Save -->
-    <div class="panel hidden center" id="panel-7">Panel 7</div>
+    <div class="panel hidden center" id="panel-7">
+        If you think your user data is correct, you can now save him in our database.
+        <br>
+        Try in the 'Search' page to find out if your user can be identified.
+        <br>
+        <button type="button" class="button" onclick="step_6_save()">Save user</button>
+    </div>
 
 {% endblock %}
 

@@ -53,8 +53,7 @@ class GUIController:
 
     def s3_generate_pca_components(self, num_components: int=None):
         images_array = np.array(self._images_resized)
-        change_nb_components = num_components is not None
-        self._optimum_components = self._peep.generate_eigenfaces(images_array, num_components, change_nb_components)
+        self._optimum_components = self._peep.generate_eigenfaces(images_array, num_components)
         self._images_eigenface = self._peep.get_eigenfaces()
         self.next_step(3)
 
@@ -66,6 +65,9 @@ class GUIController:
         self._peep.add_laplace_noise()
         self._images_noised = self._peep.get_noised_images()
         self.next_step(4)
+        # Temp
+        self.noised_vectors = self._peep.noised_vectors
+        print(self.noised_vectors)
 
 
     #-----------------------------------------------------------------------------------#

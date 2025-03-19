@@ -150,6 +150,18 @@ function step_4_noise(go_next=false) {
 }
 
 
+function step_5_ML() {
+    setCurrentStep(7)
+}
+
+
+function step_6_save() {
+    console.log("user saved")
+}
+
+
+
+
 function call_process(step, success_method, formDataBase=null) {
     // Create & merge formData
     const formData = new FormData();

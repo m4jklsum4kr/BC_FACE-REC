@@ -4,7 +4,7 @@ from PIL import Image
 from src.config import IMAGE_SIZE
 from src.modules.eigenface import EigenfaceGenerator
 from src.modules.noise_generator import NoiseGenerator
-from src.modules.utils_image import image_numpy_to_pillow, image_pillow_to_bytes, numpy_image_to_pillow, pillow_image_to_bytes
+from src.modules.utils_image import image_numpy_to_pillow, numpy_image_to_pillow, pillow_image_to_bytes
 
 class Peep:
     """
@@ -42,7 +42,7 @@ class Peep:
         self.sensitivity = None
         self.max_components = None
 
-    def _generate_eigenfaces(self, images_data: np.ndarray, n_components=None):
+    def generate_eigenfaces(self, images_data: np.ndarray, n_components=None):
         """Generates eigenfaces from preprocessed image data.
 
         Args:
@@ -74,7 +74,7 @@ class Peep:
         return optimum_components
 
 
-    def _project_images(self, images_data: np.ndarray):
+    def project_images(self, images_data: np.ndarray):
         """Projects the images onto the eigenface subspace.
 
         Args:
@@ -86,7 +86,7 @@ class Peep:
         self.projected_vectors = self.pca_object.pca.transform(images_data)
 
 
-    def _calculate_sensitivity(self, method='bounded', unbounded_bound_type='l2'):
+    def calculate_sensitivity(self, method='bounded', unbounded_bound_type='l2'):
         """Calculates the sensitivity of the PCA transformation.
 
         Args:
@@ -137,9 +137,8 @@ class Peep:
         self.epsilon = float(epsilon)
 
 
-    def _add_laplace_noise(self):
+    def add_laplace_noise(self):
         """Adds Laplace noise to the projected image data."""
-        print(self.projected_vectors.shape)
         if self.projected_vectors is None:
             raise ValueError("Images must be projected before adding noise.")
         if self.sensitivity is None:
@@ -164,10 +163,10 @@ class Peep:
         Returns:
             bool: True if the process completes successfully.
         """
-        self._generate_eigenfaces(images_data, n_components)
-        self._project_images(images_data)
-        self._calculate_sensitivity(method, unbounded_bound_type)
-        self._add_laplace_noise()
+        self.generate_eigenfaces(images_data, n_components)
+        self.project_images(images_data)
+        self.calculate_sensitivity(method, unbounded_bound_type)
+        self.add_laplace_noise()
         return True
 
 
@@ -242,12 +241,11 @@ class Peep:
 
         reconstructed_noisy = self.pca_object.reconstruct_image(self.noised_vectors)
         pil_images = [image_numpy_to_pillow(img.reshape(self.resize_size)) for img in reconstructed_noisy]
-        #pil_images = numpy_image_to_pillow(self.noised_images, self.resize_size, True)
+        #pil_images = numpy_image_to_pillow(self.noised_images, self.resize_size, True) # Please use this instead
 
         if format == 'pillow':
             return pil_images
         elif format == 'bytes':
-            #return pillow_image_to_bytes(pil_images)
-            return [image_pillow_to_bytes(img) for img in pil_images]
+            return pillow_image_to_bytes(pil_images)
         else:
             raise ValueError("'format' must be 'numpy', 'pillow', or 'bytes'.")
