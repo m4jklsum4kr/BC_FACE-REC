@@ -3,6 +3,7 @@ import io
 import os
 from PIL import Image
 import numpy as np
+from skimage.metrics import structural_similarity as ssim
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
@@ -110,3 +111,21 @@ def image_numpy_to_pillow(image, resized_size=None):
             raise ValueError("'resized_size' must be provided because the image is one-dimensional.")
         image = image.reshape(resized_size)
     return Image.fromarray((image * 255).astype(np.uint8))
+
+def calculate_mse(imageA, imageB, image_size):
+    if imageA.ndim == 1:
+        imageA = imageA.reshape(image_size)
+    if imageB.ndim == 1:
+        imageB = imageB.reshape(image_size)
+    err = np.sum((imageA.astype("float") - imageB.astype("float")) ** 2)
+    err /= float(imageA.shape[0] * imageA.shape[1])
+    return err
+
+def calculate_ssim(imageA, imageB, data_range=None):
+    if imageA.ndim == 3:
+        imageA = np.dot(imageA[...,:3], [0.2989, 0.5870, 0.1140])  # Convertit en niveaux de gris
+    if imageB.ndim == 3:
+        imageB = np.dot(imageB[...,:3], [0.2989, 0.5870, 0.1140])  # Convertit en niveaux de gris
+        if data_range is None:
+            data_range = imageB.max() - imageB.min()
+    return ssim(imageA, imageB, data_range=data_range)
