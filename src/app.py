@@ -129,6 +129,15 @@ def new_people_processing():
                 # Apply the process
                 ctrl.s4_apply_differential_privacy(epsilon)
                 imgs = ctrl.get_image_noised("bytes")
+            case 5:
+                # Apply the process
+                ctrl.s5_launch_ml()
+            case 6:
+                # Apply the process
+                user_id = ctrl.s6_save_user()
+                # No modification in the Controller, we can skeep now
+                return jsonify({'step': step, 'result': 'end', 'user_id': user_id}), 200
+
     else:
          return jsonify({'step': step, 'error': "Can't run this step"}), 400
 

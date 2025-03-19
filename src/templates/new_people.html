@@ -85,7 +85,7 @@
         <br>
         You can skip this step.
         <br>
-        <button type="button" class="button" onclick="step_5_ML()">Next</button>
+        <button type="button" class="button" onclick="step_5_ML(true)">Next</button>
     </div>
     <!-- Save -->
     <div class="panel hidden center" id="panel-7">
@@ -94,6 +94,8 @@
         Try in the 'Search' page to find out if your user can be identified.
         <br>
         <button type="button" class="button" onclick="step_6_save()">Save user</button>
+        <br><br>
+        <div id="user_id" class="valid"></div>
     </div>
 
 {% endblock %}

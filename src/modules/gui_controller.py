@@ -1,19 +1,15 @@
 import os
 import pickle
-import shutil
 import PIL
-from PIL import Image
 from numpy import ndarray
 from werkzeug.datastructures import FileStorage
 import numpy as np
-import io
 
 from config import IMAGE_SIZE
 from modules.image_preprocessing import preprocess_image
 from modules.peep import Peep
-from modules.utils_image import pillow_image_to_bytes, filestorage_image_to_pil, filestorage_image_to_numpy, \
-    numpy_image_to_pillow
-
+from modules.utils_image import pillow_image_to_bytes, filestorage_image_to_numpy, numpy_image_to_pillow
+from modules.database_controller import DatabaseController
 
 class GUIController:
     path = r"data\temp_gui_controller.pkl"
@@ -25,6 +21,7 @@ class GUIController:
         self._images_resized:  list[np.ndarray] = [np.array([])]
         self._images_eigenface: list[np.ndarray] = [np.array([])]
         self._images_noised: list[np.ndarray] = [np.array([])]
+        self.noised_vectors: np.ndarray = np.array([])
         # Workflow Attributs
         self._step = 1
         self._image_size: (int, int) = IMAGE_SIZE
@@ -69,43 +66,55 @@ class GUIController:
         self.noised_vectors = self._peep.noised_vectors
         print(self.noised_vectors)
 
+    def s5_launch_ml(self):
+        self.next_step(5)
+        print("No ML implemented yet")
+
+    def s6_save_user(self):
+        db = DatabaseController()
+        user_id = db.add_user(self.noised_vectors)
+        GUIController.delete_temp_file()
+        self.next_step(6)
+        return user_id
+
 
     #-----------------------------------------------------------------------------------#
     #------------------------------------# GETTER #-------------------------------------#
     #-----------------------------------------------------------------------------------#
 
-
-    def _get_image(self, image_list: list[np.ndarray], format:['ndarray', 'PIL', 'bytes']= 'bytes'):
+    def _get_image(self, image_list: list[np.ndarray], form:['ndarray', 'PIL', 'bytes']= 'bytes'):
         if image_list is None:
             return []
-        elif format == 'ndarray':
+        elif form == 'ndarray':
             return image_list
         pil_images = numpy_image_to_pillow(image_list, self._image_size, list_mode=True)
-        if format == 'PIL':
+        if form == 'PIL':
             return pil_images
-        elif format == 'bytes':
+        elif form == 'bytes':
             return pillow_image_to_bytes(pil_images)
-        raise Exception('image format must be ndarray, PIL or bytes')
+        raise Exception('image form must be ndarray, PIL or bytes')
 
-    def get_image_source(self, format:['ndarray', 'PIL', 'bytes']= 'bytes'):
-        return self._get_image(self._images_source, format)
+    def get_image_source(self, form:['ndarray', 'PIL', 'bytes']= 'bytes'):
+        return self._get_image(self._images_source, form)
 
-    def get_image_pixelated(self, format:['ndarray', 'PIL', 'bytes']= 'bytes'):
-        return self._get_image(self._images_pixelated, format)
+    def get_image_pixelated(self, form:['ndarray', 'PIL', 'bytes']= 'bytes'):
+        return self._get_image(self._images_pixelated, form)
 
-    def get_image_resized(self, format:['ndarray', 'PIL', 'bytes']= 'bytes'):
-        return self._get_image(self._images_resized, format)
+    def get_image_resized(self, form:['ndarray', 'PIL', 'bytes']= 'bytes'):
+        return self._get_image(self._images_resized, form)
 
-    def get_image_eigenface(self, format:['ndarray', 'PIL', 'bytes']= 'bytes'):
-        return self._get_image(self._images_eigenface, format)
+    def get_image_eigenface(self, form:['ndarray', 'PIL', 'bytes']= 'bytes'):
+        return self._get_image(self._images_eigenface, form)
 
-    def get_image_noised(self, format:['ndarray', 'PIL', 'bytes']= 'bytes'):
-        return self._get_image(self._images_noised, format)
+    def get_image_noised(self, form:['ndarray', 'PIL', 'bytes']= 'bytes'):
+        return self._get_image(self._images_noised, form)
 
     def get_image_number(self):
         return len(self._images_source)
+
+
     #-----------------------------------------------------------------------------------#
-    #------------------------------------# SESSION #------------------------------------#
+    #-----------------------------# SESSION COOKIES PART #------------------------------#
     #-----------------------------------------------------------------------------------#
 
     def save_to_file(self):

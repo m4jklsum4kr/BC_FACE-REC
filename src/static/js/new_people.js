@@ -150,13 +150,30 @@ function step_4_noise(go_next=false) {
 }
 
 
-function step_5_ML() {
-    setCurrentStep(7)
+function step_5_ML(go_next=false) {
+    // Get data
+    //...
+    // Prepare success method
+    function success_method(response, step) {
+        if (go_next) {
+            setCurrentStep(7)
+        }
+    }
+    // Call the server
+    call_process('5', success_method);
 }
 
 
-function step_6_save() {
-    console.log("user saved")
+function step_6_save(go_next=false) {
+        // Get data
+    //...
+    // Prepare success method
+    function success_method(response, step) {
+        htmlContent = "New user created. His identification number is: " + response.user_id
+        document.getElementById('user_id').innerHTML = htmlContent;
+    }
+    // Call the server
+    call_process('6', success_method);
 }
 
 
