@@ -165,7 +165,7 @@ function step_5_ML(go_next=false) {
 
 
 function step_6_save(go_next=false) {
-        // Get data
+    // Get data
     //...
     // Prepare success method
     function success_method(response, step) {

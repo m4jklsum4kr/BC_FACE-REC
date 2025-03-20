@@ -68,48 +68,12 @@ $step-done-transition: 0.3s ease 0.5s;
 }
 
 
-//------------------------------------------------------//
-//--------------// ARROW PANEL ELEMENTS //--------------//
-//------------------------------------------------------//
-$primary-color: #64aad2;
-$white: #fff;
-
-.hidden {
-    display: none;
-}
-
-.panel {
-    padding: 20px;
-    border: 1px solid #64aad2;
-    margin-top: 10px;
-}
-
-.button {
-    display: inline-block;
-    padding: 15px 30px;
-    background-color: $primary-color;
-    color: $white;
-    border-radius: 5px;
-    cursor: pointer;
-    border: none;
-    margin-top: 25px;
-}
-
-#error {
-    color: red;
-    text-align: center;
-    font-weight: bold;
-}
-
-.valid {
-    color: green;
-    text-align: center;
-    font-weight: bold;
-}
 
 //------------------------------------------------------//
 //-----------------// IMAGE CONTAINER //----------------//
 //------------------------------------------------------//
+$primary-color: #64aad2;
+$white: #fff;
 
 .upload-button {
     margin-bottom: 10px;

@@ -46,25 +46,28 @@ for filename in listdir(f"src/{assets.url}/css"):
 # ------------------------- WEB PAGE ----------------------------------------
 # ---------------------------------------------------------------------------
 @app.route("/")
-def index():
+def index_page():
     return render_template("index.html")
 
 @app.route("/search_people")
-def search_people():
-    return render_template("search_people.html")
+def search_people_page():
+    user_list = GUIController.get_user_list()
+    return render_template("search_people.html", user_list=user_list)
+
+@app.route("/show_database")
+def show_database_page():
+    user_list = GUIController.get_user_list()
+    return render_template("show_database.html", user_list=user_list)
+
+
 
 @app.route("/new_people")
-def new_people():
+def new_people_init_page():
     GUIController.delete_temp_file()
     return render_template("new_people.html")
 
-
-@app.route("/show_database")
-def show_database():
-    return render_template("show_database.html")
-
 @app.route("/new_people", methods=['POST'])
-def new_people_processing():
+def new_people_processing_page():
     print(request.form)
     print(request.files)
     # Check step value
@@ -151,6 +154,36 @@ def new_people_processing():
 # ---------------------------------------------------------------------------
 # ------------------------- BACK FUNCTIONS ----------------------------------
 # ---------------------------------------------------------------------------
+
+@app.route("/get_user_list", methods=['POST'])
+def get_user_list_action():
+    print(request.form)
+    print(request.files)
+    user_id = request.form.get('user_id')
+    user_data = GUIController.get_user_data(int(user_id))
+    # Return good execution message
+    return jsonify({'result': 'end', 'user_id':user_id, "user_data":user_data.tolist()}), 200
+
+@app.route("/delete_user", methods=['POST'])
+def delete_user_action():
+    print(request.form)
+    print(request.files)
+    print("delete_user called")
+    user_id = request.form.get('user_id')
+    result = GUIController.delete_user(int(user_id))
+    # Return good execution message
+    return jsonify({'result': 'end', 'user_id':user_id, "nb_rows_delete": result}), 200
+
+
+@app.route("/recontruct_user", methods=['POST'])
+def recontruct_user_action():
+    print(request.form)
+    print(request.files)
+    print("recontruct_user called")
+    user_id = request.form.get('user_id')
+    # Return good execution message
+    return jsonify({'result': 'end', 'user_id':user_id}), 200
+
 
 @app.route('/api/check_photo', methods=['POST'])
 def check_photo():

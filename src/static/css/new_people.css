@@ -59,39 +59,6 @@
   border-left-color: #23468c;
 }
 
-.hidden {
-  display: none;
-}
-
-.panel {
-  padding: 20px;
-  border: 1px solid #64aad2;
-  margin-top: 10px;
-}
-
-.button {
-  display: inline-block;
-  padding: 15px 30px;
-  background-color: #64aad2;
-  color: #fff;
-  border-radius: 5px;
-  cursor: pointer;
-  border: none;
-  margin-top: 25px;
-}
-
-#error {
-  color: red;
-  text-align: center;
-  font-weight: bold;
-}
-
-.valid {
-  color: green;
-  text-align: center;
-  font-weight: bold;
-}
-
 .upload-button {
   margin-bottom: 10px;
 }

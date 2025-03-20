@@ -33,7 +33,7 @@ class DatabaseController:
         self.conn.commit()
         return self.cursor.lastrowid # Send user id
 
-    def get_user(self, id):
+    def get_user(self, id) -> np.ndarray:
         self.cursor.execute(f"SELECT {self._column_data} FROM {self._table_name} WHERE {self._column_id} = (?)", (id,))
         result = self.cursor.fetchone()
         if result:
@@ -52,6 +52,11 @@ class DatabaseController:
         self.cursor.execute(f"DELETE FROM {self._table_name} WHERE {self._column_id} = (?)",(id,))
         self.conn.commit()
         return self.cursor.rowcount # Number of affected rows
+
+    def get_user_id_list(self):
+        self.cursor.execute(f"SELECT {self._column_id} FROM {self._table_name}")
+        result = self.cursor.fetchall()
+        return [row[0] for row in result] # Send list of user IDs
 
 
 if __name__ == '__main__':
@@ -80,6 +85,9 @@ if __name__ == '__main__':
     res = db.delete_user(user_id)
     print("Delete user:", user_id)
     print("Number of affected rows:", res)
+
+    user_list = db.get_user_id_list()
+    print(user_list)
 
 
 

@@ -11,9 +11,10 @@
     <div class="center">
         <label for="selectBox">User login:</label>
         <select id="selectBox" name="selectBox">
-            <option value="user1">User 1</option>
-            <option value="user2">User 2</option>
-            <option value="user3">User 3</option>
+            <option value="" disabled selected>Select a user</option>
+            {% for user_id in user_list %}
+                <option value="{{ user_id }}">User {{ user_id }}</option>
+            {% endfor %}
         </select>
         <div class="upload-button">
             <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="previewImage(event)">
