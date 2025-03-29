@@ -1,11 +1,15 @@
 import base64
 import io
 import os
+
+import PIL
 from PIL import Image
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from werkzeug.datastructures import FileStorage
+
 
 def load_images(image_folder, subject_prefix=None, image_extensions=(".png", ".jpg", ".jpeg")):
     images = []
@@ -93,15 +97,77 @@ def save_data(data, filename):
 def load_data(filename):
     return np.load(filename)
 
-def image_pillow_to_bytes(image):
-    """Converts a PIL Image to bytes."""
-    if not isinstance(image, Image.Image):
-        raise ValueError("'image' must be a valid PIL Image object.")
-    buffer = io.BytesIO()
-    image.save(buffer, format='JPEG')
-    image = base64.b64encode(buffer.getvalue()).decode()
-    return image
 
+
+
+def filestorage_image_to_pil(element: FileStorage|list[FileStorage]) -> PIL.Image.Image|list[PIL.Image.Image]:
+    """Converts a FileStorage Image or a list of FileStorage Image to PIL image(s)."""
+    if element is None:
+        raise ValueError("no element for filestorage_image_to_pil()")
+    if isinstance(element, list):
+        return [Image.open(io.BytesIO(image.read())) for image in element]
+    else:
+        return Image.open(io.BytesIO(element.read()))
+
+
+def filestorage_image_to_numpy(element: FileStorage | list[FileStorage]) -> np.ndarray | list[np.ndarray]:
+    """Converts a FileStorage Image or a list of FileStorage Image to numpy array(s) with proper color channels."""
+    if element is None:
+        raise ValueError("no element for filestorage_image_to_numpy()")
+    if isinstance(element, list):
+        return [np.array(Image.open(io.BytesIO(image.read())).convert('RGB')) for image in element]
+    else:
+        return np.array(Image.open(io.BytesIO(element.read())).convert('RGB'))
+
+def pillow_image_to_bytes(element: PIL.Image.Image|list[PIL.Image.Image]) -> str|list[str]:
+    """Converts a PIL image or a list of PIL image to a bytes string image(s)."""
+    if element is None:
+        raise ValueError("no element for pillow_image_to_bytes()")
+    def convert(image):
+        if not isinstance(image, Image.Image):
+            raise ValueError("'image' must be a valid PIL Image object.")
+        buffer = io.BytesIO()
+        image.save(buffer, format='JPEG')
+        return base64.b64encode(buffer.getvalue()).decode()
+    if isinstance(element, list):
+        return [convert(image) for image in element]
+    else:
+        return convert(element)
+
+
+def numpy_image_to_pillow(element: np.ndarray | list[np.ndarray], resized_size: (int, int) = None,
+                          list_mode: bool = False) -> Image.Image | list[Image.Image]:
+    """Converts a NumPy array or a list of NumPy array to a PIL image(s)."""
+    if element is None:
+        raise ValueError("no element for numpy_image_to_pillow()")
+
+    def convert(image):
+        if image is None or not isinstance(image, np.ndarray):
+            raise ValueError("'image' must be a valid NumPy array.")
+        elif image.ndim == 1:
+            if resized_size is None:
+                raise ValueError("'resized_size' must be provided because the image is one-dimensional.")
+            image = image.reshape(resized_size)
+
+        # Assurez-vous que les valeurs sont dans la plage correcte
+        if image.dtype != np.uint8:
+            image = (image * 255).astype(np.uint8)
+
+        # Gérez les canaux de couleur
+        if image.ndim == 2:
+            return Image.fromarray(image, mode='L')  # Image en niveaux de gris
+        elif image.ndim == 3 and image.shape[2] == 3:
+            return Image.fromarray(image, mode='RGB')  # Image en couleur
+        else:
+            raise ValueError("Unsupported image shape: {}".format(image.shape))
+
+    if isinstance(element, list) or list_mode:
+        return [convert(image) for image in element]
+    else:
+        return convert(element)
+
+
+# TO DELETE
 def image_numpy_to_pillow(image, resized_size=None):
     """Converts a NumPy array to a PIL Image."""
     if image is None or type(image) != np.ndarray:
