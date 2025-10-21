@@ -1,9 +1,11 @@
 import os
+import sys
 import pickle
 import PIL
 from numpy import ndarray
 from werkzeug.datastructures import FileStorage
 import numpy as np
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from config import IMAGE_SIZE
 from modules.image_preprocessing import preprocess_image
